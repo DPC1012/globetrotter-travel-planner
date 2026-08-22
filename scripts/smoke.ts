@@ -106,6 +106,64 @@ async function main() {
   });
   check("date order -> 400", dateBad.status === 400, dateBad);
 
+  /* ---------- stops ---------- */
+
+  const citiesRes = await call("GET", "/api/cities?page=1");
+  let cityId = citiesRes.json?.items?.[0]?.id as string | undefined;
+  check("cities list available for stops test", !!cityId, citiesRes.json);
+
+  if (!cityId) {
+    const { db } = await import("../src/lib/db");
+    const { cities } = await import("../src/lib/db/schema");
+    const [row] = await db.select({ id: cities.id }).from(cities).limit(1);
+    cityId = row?.id;
+  }
+
+  if (cityId) {
+    const s1 = await call("POST", `/api/trips/${id}/stops`, {
+      cityId,
+      arrivalDate: "2026-12-01",
+      departureDate: "2026-12-03",
+    });
+    check("POST stop 1 position=0", s1.status === 200 && s1.json.position === 0, s1);
+
+    const s2 = await call("POST", `/api/trips/${id}/stops`, {
+      cityId,
+      arrivalDate: "2026-12-03",
+      departureDate: "2026-12-05",
+    });
+    check("POST stop 2 appended at 1000", s2.status === 200 && s2.json.position === 1000, s2);
+
+    const badStop = await call("POST", `/api/trips/${id}/stops`, {
+      cityId,
+      arrivalDate: "2026-12-05",
+      departureDate: "2026-12-03",
+    });
+    check("stop date order -> 400", badStop.status === 400, badStop);
+
+    const moved = await call("POST", `/api/stops/${s2.json.id}/move`, { direction: "up" });
+    check(
+      "move up swaps positions in one tx",
+      moved.status === 200 &&
+        moved.json[0].id === s2.json.id &&
+        moved.json[0].position === 0 &&
+        moved.json[1].position === 1000,
+      moved.json?.map?.((x: any) => [x.id, x.position]),
+    );
+
+    const patchedStop = await call("PATCH", `/api/stops/${s1.json.id}`, {
+      departureDate: "2026-12-04",
+    });
+    check(
+      "PATCH stop dates",
+      patchedStop.status === 200 && patchedStop.json.departureDate === "2026-12-04",
+      patchedStop,
+    );
+
+    const delStop = await call("DELETE", `/api/stops/${s2.json.id}`);
+    check("DELETE stop", delStop.status === 200 && delStop.json.ok === true, delStop);
+  }
+
   const del = await call("DELETE", `/api/trips/${id}`);
   check("DELETE -> ok", del.status === 200 && del.json.ok === true, del);
 
