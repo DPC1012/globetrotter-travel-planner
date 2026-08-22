@@ -32,5 +32,12 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "file:../../esbuild@0.25.12/node_modules/esbuild": true,
+    "file:../../esbuild@0.28.2/node_modules/esbuild": true,
+    "file:../esbuild@0.28.2/node_modules/esbuild": true,
+    "file:../../esbuild@0.18.20/node_modules/esbuild": true,
+    "file:../../unrs-resolver@1.12.2/node_modules/unrs-resolver": true
   }
 }
