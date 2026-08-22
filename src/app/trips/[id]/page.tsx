@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, use } from "react"
 import Link from "next/link"
 import { AppShell } from "@/components/layout/app-shell"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { trips as initialTrips, formatCurrency } from "@/lib/data"
+import { trips as fallbackTrips, formatCurrency, Trip } from "@/lib/data"
+import { apiGetTripById, apiShareTrip } from "@/lib/api-client"
 import {
   ArrowLeft,
   Calendar,
@@ -22,12 +23,71 @@ import {
   ExternalLink,
 } from "lucide-react"
 
-export default function ItineraryViewPage() {
-  const trip = initialTrips[0]
+export default function ItineraryViewPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
+  const tripId = resolvedParams.id
+
+  const [trip, setTrip] = useState<Trip>(fallbackTrips[0])
   const [viewMode, setViewMode] = useState<"timeline" | "cities">("timeline")
   const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const handleShare = () => {
+  useEffect(() => {
+    async function loadTrip() {
+      const data = await apiGetTripById(tripId)
+      if (data) {
+        const fullTrip: Trip = {
+          id: data.trip.id,
+          userId: data.trip.userId,
+          name: data.trip.name,
+          description: data.trip.description || "",
+          startDate: data.trip.startDate,
+          endDate: data.trip.endDate,
+          budgetCents: data.trip.budgetCents || 0,
+          isPublic: data.trip.isPublic,
+          shareSlug: data.trip.shareSlug,
+          coverImageUrl: data.trip.coverImageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
+          status: "upcoming",
+          stops: data.stops.map((s) => ({
+            id: s.id,
+            tripId: s.tripId,
+            cityId: s.cityId,
+            city: s.city,
+            position: s.position,
+            arrivalDate: s.arrivalDate,
+            departureDate: s.departureDate,
+            activities: data.items
+              .filter((item) => item.stopId === s.id)
+              .map((item) => ({
+                id: item.id,
+                stopId: item.stopId,
+                activityId: item.activityId || undefined,
+                title: item.title,
+                category: (item.category as any) || "sightseeing",
+                durationMins: item.durationMins,
+                costCents: item.costCents,
+                date: item.date,
+                startTime: item.startTime || "09:00",
+                position: item.position,
+              })),
+          })),
+        }
+        setTrip(fullTrip)
+      } else {
+        const found = fallbackTrips.find((t) => t.id === tripId) || fallbackTrips[0]
+        setTrip(found)
+      }
+      setLoading(false)
+    }
+    loadTrip()
+  }, [tripId])
+
+  const handleShare = async () => {
+    const nextPublicState = !trip.isPublic
+    const res = await apiShareTrip(trip.id, nextPublicState)
+    if (res) {
+      setTrip((prev) => ({ ...prev, isPublic: nextPublicState, shareSlug: res.shareSlug || prev.shareSlug }))
+    }
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -59,8 +119,13 @@ export default function ItineraryViewPage() {
             <Button variant="outline" size="sm" onClick={handlePrint} className="rounded-xl text-xs font-bold">
               <Printer className="mr-1.5 h-4 w-4" /> Export / Print PDF
             </Button>
-            <Button variant="outline" size="sm" onClick={handleShare} className="rounded-xl text-xs font-bold">
-              <Share2 className="mr-1.5 h-4 w-4" /> {copied ? "Copied Link!" : "Share Trip"}
+            <Button
+              variant={trip.isPublic ? "default" : "outline"}
+              size="sm"
+              onClick={handleShare}
+              className="rounded-xl text-xs font-bold"
+            >
+              <Share2 className="mr-1.5 h-4 w-4" /> {trip.isPublic ? "Public (Toggle)" : "Share Trip"}
             </Button>
             <Link href={`/trips/${trip.id}/builder`}>
               <Button size="sm" className="rounded-xl text-xs font-bold">
@@ -71,7 +136,7 @@ export default function ItineraryViewPage() {
         </div>
 
         {/* Hero Cover Card */}
-        <div className="relative overflow-hidden rounded-3xl border border-border shadow-2xl">
+        <div className="relative overflow-hidden rounded-3xl border border-border/60 shadow-2xl">
           <div className="relative h-72 sm:h-96 w-full">
             <img src={trip.coverImageUrl} alt={trip.name} className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
@@ -111,9 +176,9 @@ export default function ItineraryViewPage() {
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-muted-foreground">Public Slug</p>
-              <Link href={`/shared/${trip.id}`} className="mt-1 font-bold text-xs text-primary hover:underline flex items-center gap-1">
-                /t/{trip.shareSlug} <ExternalLink className="h-3 w-3" />
+              <p className="text-xs font-semibold text-muted-foreground">Public Share Slug</p>
+              <Link href={`/shared/${trip.shareSlug || trip.id}`} className="mt-1 font-bold text-xs text-primary hover:underline flex items-center gap-1">
+                /t/{trip.shareSlug || trip.id} <ExternalLink className="h-3 w-3" />
               </Link>
             </div>
           </div>
@@ -140,7 +205,7 @@ export default function ItineraryViewPage() {
                   {sIdx + 1}
                 </div>
 
-                <div className="bg-card border border-border rounded-2xl p-5 shadow-xl">
+                <div className="bg-card border border-border/60 rounded-2xl p-5 shadow-xl">
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <div className="flex items-center gap-3">
                       <img src={stop.city.image} alt={stop.city.name} className="h-10 w-10 rounded-xl object-cover" />
@@ -184,7 +249,7 @@ export default function ItineraryViewPage() {
           /* Grouped by Cities Grid */
           <div className="grid md:grid-cols-2 gap-6">
             {trip.stops.map((stop) => (
-              <Card key={stop.id} className="border-border shadow-xl">
+              <Card key={stop.id} className="border-border/60 shadow-xl rounded-2xl">
                 <CardHeader className="pb-3 border-b border-border/60">
                   <div className="flex items-center gap-3">
                     <img src={stop.city.image} alt={stop.city.name} className="h-12 w-12 rounded-xl object-cover" />
@@ -198,7 +263,7 @@ export default function ItineraryViewPage() {
                 </CardHeader>
                 <CardContent className="p-4 space-y-2">
                   {stop.activities.map((act) => (
-                    <div key={act.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border text-xs">
+                    <div key={act.id} className="flex items-center justify-between p-2.5 rounded-xl border border-border/60 text-xs">
                       <div>
                         <p className="font-bold text-foreground">{act.title}</p>
                         <p className="text-muted-foreground text-[11px]">{act.startTime} • {act.durationMins} mins</p>
@@ -215,3 +280,4 @@ export default function ItineraryViewPage() {
     </AppShell>
   )
 }
+

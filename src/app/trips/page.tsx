@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { AppShell } from "@/components/layout/app-shell"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,7 +14,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { trips as initialTrips, formatCurrency, Trip } from "@/lib/data"
+import { trips as initialTrips, formatCurrency, Trip, cities as fallbackCities } from "@/lib/data"
+import { apiGetTrips, apiDeleteTrip } from "@/lib/api-client"
 import {
   Plus,
   Search,
@@ -35,9 +36,45 @@ export default function MyTripsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [loading, setLoading] = useState(true)
 
-  const handleDeleteTrip = (id: string) => {
-    setTrips(trips.filter((t) => t.id !== id))
+  useEffect(() => {
+    async function loadTrips() {
+      const apiTrips = await apiGetTrips()
+      if (apiTrips && apiTrips.length > 0) {
+        const mapped: Trip[] = apiTrips.map((t) => ({
+          id: t.id,
+          userId: t.userId,
+          name: t.name,
+          description: t.description || "",
+          startDate: t.startDate,
+          endDate: t.endDate,
+          budgetCents: t.budgetCents || 0,
+          isPublic: t.isPublic,
+          shareSlug: t.shareSlug,
+          coverImageUrl: t.coverImageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
+          status: "upcoming",
+          stops: Array.from({ length: t.stopCount || 0 }, (_, i) => ({
+            id: `stop-${i}`,
+            tripId: t.id,
+            cityId: "city",
+            city: fallbackCities[i % fallbackCities.length],
+            position: i * 1000,
+            arrivalDate: t.startDate,
+            departureDate: t.endDate,
+            activities: [],
+          })),
+        }))
+        setTrips(mapped)
+      }
+      setLoading(false)
+    }
+    loadTrips()
+  }, [])
+
+  const handleDeleteTrip = async (id: string) => {
+    await apiDeleteTrip(id)
+    setTrips((prev) => prev.filter((t) => t.id !== id))
   }
 
   const filteredTrips = trips.filter((t) => {
@@ -112,7 +149,7 @@ export default function MyTripsPage() {
 
         {/* Trips Display Grid/List */}
         {filteredTrips.length === 0 ? (
-          <Card className="p-12 text-center border-dashed border-2">
+          <Card className="p-12 text-center border-dashed border-2 rounded-2xl">
             <p className="text-lg font-bold text-muted-foreground">No trips found</p>
             <p className="text-xs text-muted-foreground mt-1">Try resetting your filters or start a new trip.</p>
             <Link href="/trips/new" className="mt-4 inline-block">
@@ -124,7 +161,7 @@ export default function MyTripsPage() {
             {filteredTrips.map((t) => (
               <Card
                 key={t.id}
-                className="group overflow-hidden border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-2xl flex flex-col justify-between"
+                className="group overflow-hidden border-border/60 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-2xl flex flex-col justify-between"
               >
                 <div>
                   <div className="relative h-48 overflow-hidden">
@@ -148,7 +185,7 @@ export default function MyTripsPage() {
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuContent align="end" className="w-44 rounded-xl">
                         <DropdownMenuItem asChild>
                           <Link href={`/trips/${t.id}`} className="cursor-pointer">
                             <Eye className="mr-2 h-4 w-4" /> View Details
@@ -166,7 +203,7 @@ export default function MyTripsPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDeleteTrip(t.id)}
-                          className="text-destructive cursor-pointer"
+                          className="text-destructive cursor-pointer font-semibold"
                         >
                           <Trash2 className="mr-2 h-4 w-4" /> Delete Trip
                         </DropdownMenuItem>
@@ -191,10 +228,10 @@ export default function MyTripsPage() {
                       </div>
                       <div className="flex items-center justify-between pt-1">
                         <span className="flex items-center gap-1.5 font-medium">
-                          <MapPin className="h-3.5 w-3.5 text-primary" /> {t.stops.length} Stop Cities
+                          <MapPin className="h-3.5 w-3.5 text-primary" /> {t.stops ? t.stops.length : 0} Stop Cities
                         </span>
                         <span className="flex items-center gap-1.5 font-bold text-foreground">
-                          <Wallet className="h-3.5 w-3.5 text-emerald-500" /> {formatCurrency(t.budgetCents)}
+                          <Wallet className="h-3.5 w-3.5 text-emerald-500" /> {formatCurrency(t.budgetCents || 0)}
                         </span>
                       </div>
                     </div>
@@ -218,7 +255,7 @@ export default function MyTripsPage() {
 
             {/* Create Card Shortcut */}
             <Link href="/trips/new">
-              <Card className="h-full min-h-[300px] border-dashed border-2 border-primary/40 flex flex-col items-center justify-center p-6 text-center hover:bg-accent/40 transition-colors group cursor-pointer">
+              <Card className="h-full min-h-[300px] border-dashed border-2 border-primary/40 rounded-2xl flex flex-col items-center justify-center p-6 text-center hover:bg-accent/40 transition-colors group cursor-pointer">
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                   <Plus className="h-6 w-6" />
                 </div>
@@ -231,7 +268,7 @@ export default function MyTripsPage() {
           /* List Mode */
           <div className="space-y-3">
             {filteredTrips.map((t) => (
-              <Card key={t.id} className="overflow-hidden border-border hover:shadow-lg transition-all p-4">
+              <Card key={t.id} className="overflow-hidden border-border/60 rounded-2xl hover:shadow-lg transition-all p-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <img src={t.coverImageUrl} alt={t.name} className="h-16 w-20 rounded-xl object-cover shrink-0" />
@@ -243,8 +280,8 @@ export default function MyTripsPage() {
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t.description}</p>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
                         <span>📅 {t.startDate} → {t.endDate}</span>
-                        <span>📍 {t.stops.length} Cities</span>
-                        <span className="font-bold text-foreground">💰 {formatCurrency(t.budgetCents)}</span>
+                        <span>📍 {t.stops ? t.stops.length : 0} Cities</span>
+                        <span className="font-bold text-foreground">💰 {formatCurrency(t.budgetCents || 0)}</span>
                       </div>
                     </div>
                   </div>
@@ -266,3 +303,4 @@ export default function MyTripsPage() {
     </AppShell>
   )
 }
+
