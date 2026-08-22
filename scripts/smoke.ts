@@ -303,6 +303,96 @@ async function main() {
   const gone = await call("GET", `/api/trips/${id}`);
   check("deleted trip -> 404", gone.status === 404, gone);
 
+  /* ---------- sharing & explore (no-auth endpoints) ---------- */
+
+  const tripsAgain = await call("GET", "/api/trips");
+  const europe = tripsAgain.json.find((t: any) => t.name === "European Highlights");
+  check("seeded public trip present", !!europe);
+
+  if (europe) {
+    const shareOn = await call("POST", `/api/trips/${europe.id}/share`, { isPublic: true });
+    check(
+      "share on keeps stable uuid slug",
+      shareOn.status === 200 &&
+        shareOn.json.isPublic === true &&
+        typeof shareOn.json.shareSlug === "string" &&
+        shareOn.json.shareSlug.length === 36,
+      shareOn.json,
+    );
+
+    const savedCookie2 = cookie;
+    cookie = "";
+    const explore = await call("GET", "/api/public/trips?page=1");
+    check(
+      "explore grid no-auth paginated",
+      explore.status === 200 &&
+        Array.isArray(explore.json.items) &&
+        typeof explore.json.total === "number" &&
+        explore.json.items.length >= 1 &&
+        !!explore.json.items[0].ownerName,
+      { status: explore.status, total: explore.json?.total },
+    );
+    const anonShare = await call("POST", `/api/trips/${europe.id}/share`, { isPublic: false });
+    check("share toggle requires auth -> 401", anonShare.status === 401, anonShare.status);
+    cookie = savedCookie2;
+
+    const slug = shareOn.json.shareSlug;
+    const shared = await call("GET", `/api/public/trips/${slug}`);
+    check(
+      "shared trip same payload shape",
+      shared.status === 200 &&
+        shared.json.trip?.name === "European Highlights" &&
+        shared.json.stops?.length === 2 &&
+        shared.json.items?.length === 7,
+      { status: shared.status },
+    );
+
+    const fakeSlug = await call("GET", "/api/public/trips/not-a-real-slug");
+    check("unknown slug -> 404", fakeSlug.status === 404, fakeSlug.status);
+
+    const japanTrip = tripsAgain.json.find((t: any) => t.name === "Japan Adventure");
+    if (japanTrip) {
+      const off = await call("POST", `/api/trips/${japanTrip.id}/share`, { isPublic: false });
+      check("toggle private trip stays private", off.status === 200 && !off.json.isPublic, off);
+
+      const hidden = await call("GET", "/api/public/trips");
+      check(
+        "private trip absent from explore",
+        !hidden.json.items.some((c: any) => c.trip.id === japanTrip.id),
+        hidden.json?.items?.length,
+      );
+    }
+  }
+
+  /* ---------- saved cities ---------- */
+
+  const savedList = await call("GET", "/api/me/saved-cities");
+  check("saved cities starts empty", savedList.status === 200 && savedList.json.length === 0, {
+    status: savedList.status,
+    len: savedList.json?.length,
+  });
+
+  if (cityId) {
+    const put = await call("PUT", `/api/me/saved-cities/${cityId}`);
+    check("save city", put.status === 200 && put.json.ok === true, put);
+
+    const putAgain = await call("PUT", `/api/me/saved-cities/${cityId}`);
+    check("re-save idempotent", putAgain.status === 200, putAgain);
+
+    const after = await call("GET", "/api/me/saved-cities");
+    check(
+      "saved city listed",
+      after.status === 200 && after.json.length === 1 && after.json[0].id === cityId,
+      after.json,
+    );
+
+    const delSaved = await call("DELETE", `/api/me/saved-cities/${cityId}`);
+    check("unsave city", delSaved.status === 200 && delSaved.json.ok === true, delSaved);
+
+    const empty = await call("GET", "/api/me/saved-cities");
+    check("saved cities empty again", empty.status === 200 && empty.json.length === 0, empty.json);
+  }
+
   const savedCookie = cookie;
   cookie = "";
   const anon = await call("GET", "/api/trips");
