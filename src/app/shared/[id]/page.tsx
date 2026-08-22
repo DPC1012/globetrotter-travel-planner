@@ -1,36 +1,174 @@
+"use client"
+
+import { useEffect, useState, use } from "react"
 import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { PlaneTakeoff, Copy, Share2, Heart, Eye } from "lucide-react"
+import { PlaneTakeoff, Copy, Share2, Heart, Eye, Calendar, MapPin, Wallet, ArrowLeft } from "lucide-react"
+import { apiGetPublicTripBySlug, ApiFullTrip } from "@/lib/api-client"
+import { trips as fallbackTrips, formatCurrency, Trip } from "@/lib/data"
 
-export default function SharedPage() {
+export default function SharedPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
+  const slug = resolvedParams.id
+
+  const [trip, setTrip] = useState<Trip>(fallbackTrips[0])
+  const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadPublicTrip() {
+      const data = await apiGetPublicTripBySlug(slug)
+      if (data) {
+        const mappedTrip: Trip = {
+          id: data.trip.id,
+          userId: data.trip.userId,
+          name: data.trip.name,
+          description: data.trip.description || "",
+          startDate: data.trip.startDate,
+          endDate: data.trip.endDate,
+          budgetCents: data.trip.budgetCents || 0,
+          isPublic: data.trip.isPublic,
+          shareSlug: data.trip.shareSlug,
+          coverImageUrl: data.trip.coverImageUrl || "https://images.unsplash.com/photo-1499856871958-5b9627505d1a?w=1200",
+          status: "upcoming",
+          stops: data.stops.map((s) => ({
+            id: s.id,
+            tripId: s.tripId,
+            cityId: s.cityId,
+            city: s.city,
+            position: s.position,
+            arrivalDate: s.arrivalDate,
+            departureDate: s.departureDate,
+            activities: data.items
+              .filter((item) => item.stopId === s.id)
+              .map((item) => ({
+                id: item.id,
+                stopId: item.stopId,
+                activityId: item.activityId || undefined,
+                title: item.title,
+                category: (item.category as any) || "sightseeing",
+                durationMins: item.durationMins,
+                costCents: item.costCents,
+                date: item.date,
+                startTime: item.startTime || "10:00",
+                position: item.position,
+              })),
+          })),
+        }
+        setTrip(mappedTrip)
+      } else {
+        const found = fallbackTrips.find((t) => t.id === slug || t.shareSlug === slug) || fallbackTrips[0]
+        setTrip(found)
+      }
+      setLoading(false)
+    }
+    loadPublicTrip()
+  }, [slug])
+
+  const handleCopyLink = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const totalCostCents = trip.stops.reduce(
+    (stopAcc, stop) => stopAcc + stop.activities.reduce((actAcc, act) => actAcc + act.costCents, 0),
+    0
+  )
+
   return (
-    <div className="min-h-screen bg-muted/20">
-      <header className="sticky top-0 z-10 bg-background border-b">
-        <div className="mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-semibold"><div className="h-8 w-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center"><PlaneTakeoff className="h-4 w-4" /></div>GlobeTrotter</Link>
-          <div className="flex gap-2"><Button variant="outline" className="rounded-full"><Heart className="h-4 w-4" />Save</Button><Button className="rounded-full"><Copy className="h-4 w-4" />Copy Trip</Button></div>
-        </div>
-      </header>
-      <div className="mx-auto max-w-5xl px-4 py-8 space-y-6">
-        <div className="rounded-[1.5rem] overflow-hidden relative h-64">
-          <img src="https://images.unsplash.com/photo-1499856871958-5b9627505d1a?w=1200" alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-          <div className="absolute bottom-0 p-6 text-white">
-            <div className="flex gap-2"><Badge className="bg-white text-black">Public</Badge><Badge variant="secondary" className="bg-white/20 text-white border-0"><Eye className="h-3 w-3" />2.4k views</Badge></div>
-            <h1 className="text-3xl font-bold mt-2">European Explorer — by Alex</h1>
-            <p className="text-white/80 text-sm">12 days • Paris • Rome • Barcelona • Budget $3,420</p>
+    <div className="min-h-screen bg-background font-sans">
+      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/60">
+        <div className="mx-auto max-w-5xl px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow">
+              <PlaneTakeoff className="h-5 w-5" />
+            </div>
+            <span className="font-serif text-xl">Globe<span className="text-primary">Trotter</span></span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleCopyLink} className="rounded-xl text-xs font-bold">
+              <Copy className="h-4 w-4 mr-1.5" /> {copied ? "Link Copied!" : "Copy Public Link"}
+            </Button>
+            <Link href="/dashboard">
+              <Button className="rounded-xl font-bold text-xs">Clone Trip</Button>
+            </Link>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="rounded-full"><Share2 className="h-4 w-4" />Share on X</Button>
-          <Button variant="outline" className="rounded-full">Share on Instagram</Button>
-          <Button variant="outline" className="rounded-full">Copy Link</Button>
+      </header>
+
+      <div className="mx-auto max-w-5xl px-4 py-8 space-y-8 animate-in fade-in duration-300">
+        <div className="rounded-3xl overflow-hidden relative h-72 sm:h-96 border border-border/60 shadow-2xl">
+          <img src={trip.coverImageUrl} alt={trip.name} className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+          <div className="absolute bottom-6 left-6 right-6 text-white space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-primary text-primary-foreground font-bold text-xs">Public Log</Badge>
+              <Badge variant="secondary" className="bg-white/20 text-white backdrop-blur-md border-0 text-xs">
+                <Eye className="h-3 w-3 mr-1" /> Verified Itinerary
+              </Badge>
+            </div>
+            <h1 className="text-3xl sm:text-5xl font-black leading-tight tracking-tight">{trip.name}</h1>
+            <p className="text-sm text-slate-300 max-w-2xl">{trip.description}</p>
+          </div>
         </div>
-        <Card><CardContent className="p-6"><h2 className="font-semibold">Itinerary Summary</h2><p className="text-sm text-muted-foreground mt-2">A perfectly paced 12-day loop through Europe&apos;s most iconic cities. Culture, food, and sunsets.</p><div className="mt-4 grid md:grid-cols-3 gap-4 text-sm"><div className="rounded-xl bg-muted p-4"><p className="font-medium">Paris (4 days)</p><p className="text-muted-foreground text-xs">Eiffel, Seine cruise, Montmartre</p></div><div className="rounded-xl bg-muted p-4"><p className="font-medium">Rome (4 days)</p><p className="text-muted-foreground text-xs">Colosseum, Vatican, Trastevere</p></div><div className="rounded-xl bg-muted p-4"><p className="font-medium">Barcelona (4 days)</p><p className="text-muted-foreground text-xs">Sagrada, Park Güell, Beach</p></div></div><Link href="/dashboard"><Button className="w-full mt-6 rounded-full">Copy This Trip to My Account</Button></Link></CardContent></Card>
-        <p className="text-center text-xs text-muted-foreground">Read-only public view — login to copy & customize</p>
+
+        <Card className="border-border/60 shadow-xl rounded-2xl">
+          <CardContent className="p-6 space-y-6">
+            <div>
+              <h2 className="font-serif text-2xl font-bold">Itinerary Overview</h2>
+              <p className="text-xs text-muted-foreground mt-1">Multi-city travel schedule with cost estimates and activity lists.</p>
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4 text-xs font-medium border-y border-border/60 py-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" /> {trip.startDate} → {trip.endDate}
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" /> {trip.stops.length} Cities Included
+              </div>
+              <div className="flex items-center gap-2 font-bold text-emerald-500">
+                <Wallet className="h-4 w-4" /> Estimated Cost {formatCurrency(totalCostCents)}
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {trip.stops.map((stop, sIdx) => (
+                <div key={stop.id} className="rounded-2xl border border-border/60 bg-card p-4 space-y-3 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <img src={stop.city.image} alt={stop.city.name} className="h-10 w-10 rounded-xl object-cover" />
+                    <div>
+                      <p className="font-bold text-sm text-foreground">{stop.city.name}, {stop.city.country}</p>
+                      <p className="text-[11px] text-muted-foreground">{stop.arrivalDate} → {stop.departureDate}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 pt-2 border-t border-border/40 text-xs">
+                    {stop.activities.map((act) => (
+                      <div key={act.id} className="flex justify-between text-muted-foreground text-[11px]">
+                        <span className="truncate pr-2">• {act.title}</span>
+                        <span className="font-semibold text-foreground shrink-0">{formatCurrency(act.costCents)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Link href="/dashboard" className="block pt-2">
+              <Button className="w-full h-11 rounded-xl font-bold text-sm">
+                Copy This Itinerary to My Account
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-xs text-muted-foreground font-medium">Read-only public view — powered by GlobeTrotter Travel Planner</p>
       </div>
     </div>
   )
 }
+
