@@ -160,6 +160,90 @@ async function main() {
       patchedStop,
     );
 
+    /* ---------- items ---------- */
+
+    let activityId: string | undefined;
+    try {
+      const { db } = await import("../src/lib/db");
+      const { activities, cities: citiesTable } = await import("../src/lib/db/schema");
+      const { eq } = await import("drizzle-orm");
+      const [row] = await db
+        .select({ id: activities.id })
+        .from(activities)
+        .innerJoin(citiesTable, eq(activities.cityId, citiesTable.id))
+        .where(eq(citiesTable.id, cityId))
+        .limit(1);
+      activityId = row?.id;
+    } catch {}
+
+    if (activityId) {
+      const catItem = await call("POST", `/api/stops/${s1.json.id}/items`, {
+        activityId,
+        date: "2026-12-02",
+        startTime: "10:00",
+      });
+      check(
+        "catalog item snapshots activity",
+        catItem.status === 200 &&
+          catItem.json.activityId === activityId &&
+          typeof catItem.json.costCents === "number" &&
+          catItem.json.position === 0,
+        catItem.json,
+      );
+
+      const wrongCity = await call("POST", `/api/stops/${s2.json.id}/items`, {
+        activityId,
+        date: "2026-12-03",
+      });
+      check(
+        "catalog item from other city -> 400",
+        wrongCity.status === 400 || s1.json.cityId === s2.json.cityId,
+        wrongCity.status,
+      );
+
+      const custom = await call("POST", `/api/stops/${s1.json.id}/items`, {
+        title: "Sunset drinks",
+        category: "nightlife",
+        costCents: 3000,
+        date: "2026-12-02",
+      });
+      check(
+        "custom item created with defaults",
+        custom.status === 200 &&
+          custom.json.activityId === null &&
+          custom.json.costCents === 3000 &&
+          custom.json.category === "nightlife" &&
+          custom.json.position === 1000,
+        custom.json,
+      );
+
+      const movedItem = await call("POST", `/api/items/${custom.json.id}/move`, {
+        direction: "up",
+      });
+      check(
+        "item move within same day",
+        movedItem.status === 200 &&
+          movedItem.json[0].id === custom.json.id &&
+          movedItem.json[0].position === 0,
+        movedItem.json?.map?.((x: any) => [x.title, x.position]),
+      );
+
+      const patchedItem = await call("PATCH", `/api/items/${custom.json.id}`, {
+        costCents: 4500,
+        startTime: "21:00",
+      });
+      check(
+        "PATCH item cost/time",
+        patchedItem.status === 200 &&
+          patchedItem.json.costCents === 4500 &&
+          patchedItem.json.startTime === "21:00",
+        patchedItem.json,
+      );
+
+      const delItem = await call("DELETE", `/api/items/${custom.json.id}`);
+      check("DELETE item", delItem.status === 200 && delItem.json.ok === true, delItem);
+    }
+
     const delStop = await call("DELETE", `/api/stops/${s2.json.id}`);
     check("DELETE stop", delStop.status === 200 && delStop.json.ok === true, delStop);
   }

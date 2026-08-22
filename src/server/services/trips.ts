@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { cities, stops, tripActivities, trips } from "@/lib/db/schema";
 import { HttpError } from "@/server/http";
+import { normalizeItem } from "@/server/serialize";
 import type { FullTripPayload, TripWithStats } from "@/server/types";
 
 export async function listTrips(userId: string): Promise<TripWithStats[]> {
@@ -86,7 +87,7 @@ export async function getTripPayload(
   return {
     trip,
     stops: stopRows.map((r) => ({ ...r.stop, city: r.city })),
-    items,
+    items: items.map(normalizeItem),
   };
 }
 
