@@ -7,10 +7,15 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { currentUser } from "@/lib/data"
+import { useSession } from "@/lib/auth/client"
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isDark, setIsDark] = useState(true)
+  const { data: session } = useSession()
+
+  const user = session?.user || currentUser
+  const userInitials = user.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "GT"
 
   const toggleTheme = () => {
     setIsDark(!isDark)
@@ -66,14 +71,14 @@ export function Header() {
           <Link href="/profile">
             <div className="flex items-center gap-2.5 pl-2 border-l border-border/60 cursor-pointer group">
               <Avatar className="h-9 w-9 border border-border shadow-sm group-hover:border-primary transition-colors">
-                <AvatarImage src={currentUser.image} alt={currentUser.name} />
-                <AvatarFallback>AR</AvatarFallback>
+                <AvatarImage src={user.image || undefined} alt={user.name || "User"} />
+                <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="hidden md:block text-left">
                 <p className="text-xs font-bold leading-none text-foreground group-hover:text-primary transition-colors">
-                  {currentUser.name}
+                  {user.name || "Sign In"}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Pro Traveler</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{session ? "Traveler" : "Guest Mode"}</p>
               </div>
             </div>
           </Link>
