@@ -1,70 +1,244 @@
+"use client"
+
 import Link from "next/link"
 import { AppShell } from "@/components/layout/app-shell"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { trips, cities } from "@/lib/data"
-import { Plus, MapPin, Calendar, Wallet, TrendingUp, ArrowRight } from "lucide-react"
+import { trips, cities, formatCurrency, currentUser } from "@/lib/data"
+import {
+  Plus,
+  MapPin,
+  Calendar,
+  Wallet,
+  TrendingUp,
+  ArrowRight,
+  Sparkles,
+  Compass,
+  Globe2,
+  Share2,
+} from "lucide-react"
 
 export default function Dashboard() {
+  const upcomingTrips = trips.filter((t) => t.status === "upcoming")
+  const totalBudgetCents = trips.reduce((acc, curr) => acc + curr.budgetCents, 0)
+  const totalStops = trips.reduce((acc, curr) => acc + curr.stops.length, 0)
+
   return (
     <AppShell>
-      <div className="space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div><h1 className="text-2xl font-bold tracking-tight">Welcome back, Alex ✈️</h1><p className="text-muted-foreground">Here&apos;s what&apos;s happening with your trips</p></div>
-          <Link href="/trips/new"><Button className="rounded-full"><Plus className="h-4 w-4" />Plan New Trip</Button></Link>
+      <div className="space-y-8 animate-in fade-in duration-300">
+        {/* Welcome Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-border/80 pb-6">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              <Sparkles className="h-3.5 w-3.5 text-foreground" /> Travel Command Center
+            </div>
+            <h1 className="mt-1 font-script text-5xl sm:text-6xl font-normal text-foreground">
+              Welcome back, {currentUser.name.split(" ")[0]}
+            </h1>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">
+              You have {upcomingTrips.length} active multi-city adventures scheduled.
+            </p>
+          </div>
+
+          <Link href="/trips/new">
+            <Button variant="default">
+              <Plus className="mr-2 h-4 w-4" /> PLAN NEW TRIP
+            </Button>
+          </Link>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4">
-          <Card><CardContent className="p-6"><p className="text-sm text-muted-foreground">Total Trips</p><p className="text-2xl font-bold mt-1">12</p><p className="text-xs text-emerald-600 flex items-center gap-1 mt-2"><TrendingUp className="h-3 w-3" />+2 this month</p></CardContent></Card>
-          <Card><CardContent className="p-6"><p className="text-sm text-muted-foreground">Total Budget</p><p className="text-2xl font-bold mt-1">$7,510</p><p className="text-xs text-muted-foreground mt-2">Avg $232 / day</p></CardContent></Card>
-          <Card><CardContent className="p-6"><p className="text-sm text-muted-foreground">Countries Explored</p><p className="text-2xl font-bold mt-1">18</p><p className="text-xs text-muted-foreground mt-2">3 continents</p></CardContent></Card>
+        {/* Financial & Metric Overview Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="polaroid-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Trips</p>
+                <div className="rounded-sm bg-foreground/10 p-2 text-foreground">
+                  <Globe2 className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-3 text-3xl font-black text-foreground">{trips.length}</p>
+              <p className="mt-2 flex items-center gap-1 text-[11px] text-emerald-600 font-bold uppercase tracking-wider">
+                <TrendingUp className="h-3.5 w-3.5" /> +2 this month
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="polaroid-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Allocated Budget</p>
+                <div className="rounded-sm bg-emerald-500/10 p-2 text-emerald-600">
+                  <Wallet className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-3 text-3xl font-black text-foreground">{formatCurrency(totalBudgetCents)}</p>
+              <p className="mt-2 text-[11px] text-muted-foreground font-semibold">Across all itineraries</p>
+            </CardContent>
+          </Card>
+
+          <Card className="polaroid-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Cities & Stops</p>
+                <div className="rounded-sm bg-foreground/10 p-2 text-foreground">
+                  <MapPin className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-3 text-3xl font-black text-foreground">{totalStops}</p>
+              <p className="mt-2 text-[11px] text-muted-foreground font-semibold">Mapped destinations</p>
+            </CardContent>
+          </Card>
+
+          <Card className="polaroid-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Countries Visited</p>
+                <div className="rounded-sm bg-amber-500/10 p-2 text-amber-600">
+                  <Compass className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="mt-3 text-3xl font-black text-foreground">6</p>
+              <p className="mt-2 text-[11px] text-muted-foreground font-semibold">Across 2 continents</p>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        {/* Main Grid Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Upcoming Trips List */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between"><h2 className="font-semibold">Upcoming Trips</h2><Link href="/trips" className="text-sm text-primary flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link></div>
-            <div className="grid gap-4">
-              {trips.slice(0, 2).map(t => (
-                <Card key={t.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="flex">
-                    <img src={t.cover} alt="" className="w-36 object-cover hidden sm:block" />
-                    <CardContent className="p-4 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div><p className="font-semibold">{t.name}</p><p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p></div>
-                        <Badge variant={t.status === "upcoming" ? "default" : "secondary"} className="capitalize">{t.status}</Badge>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">ON THE HORIZON</p>
+                <h2 className="font-serif text-2xl font-bold text-foreground">Upcoming Adventures</h2>
+              </div>
+              <Link
+                href="/trips"
+                className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-foreground hover:underline"
+              >
+                View all ({trips.length}) <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              {trips.map((t) => (
+                <Card
+                  key={t.id}
+                  className="polaroid-card group overflow-hidden"
+                >
+                  <div className="flex flex-col sm:flex-row">
+                    <div className="relative w-full sm:w-48 h-44 sm:h-auto overflow-hidden shrink-0 rounded-sm">
+                      <img
+                        src={t.coverImageUrl}
+                        alt={t.name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <Badge className="absolute left-2.5 top-2.5">
+                        {t.status}
+                      </Badge>
+                    </div>
+
+                    <CardContent className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-serif font-bold text-xl text-foreground group-hover:text-primary transition-colors">
+                            {t.name}
+                          </h3>
+                          {t.isPublic && (
+                            <Badge variant="emerald">
+                              PUBLIC
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{t.description}</p>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{t.startDate} → {t.endDate}</span><span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{t.stops} stops</span><span className="flex items-center gap-1"><Wallet className="h-3 w-3" />${t.budget}</span></div>
-                      <div className="mt-3 flex gap-2"><Link href={`/trips/${t.id}`}><Button size="sm" variant="outline" className="rounded-full">View</Button></Link><Link href={`/trips/${t.id}/builder`}><Button size="sm" className="rounded-full">Edit Itinerary</Button></Link></div>
+
+                      <div className="mt-4 pt-3 border-t border-border">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground mb-3">
+                          <span className="flex items-center gap-1.5 font-semibold">
+                            <Calendar className="h-3.5 w-3.5 text-foreground" /> {t.startDate} → {t.endDate}
+                          </span>
+                          <span className="flex items-center gap-1.5 font-semibold">
+                            <MapPin className="h-3.5 w-3.5 text-foreground" /> {t.stops.length} Cities
+                          </span>
+                          <span className="flex items-center gap-1.5 font-bold text-foreground">
+                            <Wallet className="h-3.5 w-3.5 text-emerald-600" /> {formatCurrency(t.budgetCents)}
+                          </span>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Link href={`/trips/${t.id}`} className="flex-1">
+                            <Button size="sm" variant="secondary" className="w-full">
+                              OVERVIEW
+                            </Button>
+                          </Link>
+                          <Link href={`/trips/${t.id}/builder`} className="flex-1">
+                            <Button size="sm" variant="default" className="w-full">
+                              EDIT BUILDER
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
                     </CardContent>
                   </div>
                 </Card>
               ))}
             </div>
           </div>
+
+          {/* Recommended Destinations Sidebar */}
           <div className="space-y-4">
-            <h2 className="font-semibold">Recommended Destinations</h2>
-            <div className="grid gap-3">
-              {cities.slice(0, 3).map(c => (
-                <Card key={c.id} className="overflow-hidden">
-                  <img src={c.image} alt={c.name} className="h-32 w-full object-cover" />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">INSPIRATION</p>
+              <h2 className="font-serif text-2xl font-bold text-foreground">Recommended Cities</h2>
+            </div>
+
+            <div className="space-y-4">
+              {cities.slice(0, 3).map((city) => (
+                <Card key={city.id} className="polaroid-card">
+                  <div className="relative h-32 overflow-hidden rounded-sm">
+                    <img src={city.image} alt={city.name} className="h-full w-full object-cover" />
+                    <Badge className="absolute left-2.5 top-2.5">
+                      INDEX {city.costIndex}/100
+                    </Badge>
+                  </div>
                   <CardContent className="p-3">
-                    <p className="font-medium text-sm">{c.name}, {c.country}</p>
-                    <p className="text-xs text-muted-foreground">{c.description}</p>
-                    <div className="mt-2 flex items-center justify-between"><Badge variant="secondary" className="text-xs">Cost {c.costIndex}/100</Badge><Link href="/explore/cities"><Button size="sm" variant="ghost" className="h-7 text-xs">Add</Button></Link></div>
+                    <p className="font-serif font-bold text-base text-foreground">{city.name}, {city.country}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{city.description}</p>
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-600">{city.popularity}% Rating</span>
+                      <Link href={`/trips/new?destination=${encodeURIComponent(city.name)}`}>
+                        <Button size="sm" variant="secondary" className="h-7 text-[10px]">
+                          + ADD TO TRIP
+                        </Button>
+                      </Link>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
+
+            {/* Public Community Banner Card — Jet Black Style */}
+            <Card className="polaroid-card bg-foreground text-background">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-amber-400" />
+                  <p className="font-serif font-bold text-lg text-background">Community Travel Logs</p>
+                </div>
+                <p className="text-xs opacity-80 leading-relaxed">
+                  Browse community travel plans, clone pre-built schedules, or share your own trips.
+                </p>
+                <Link href="/shared/demo" className="block pt-1">
+                  <Button variant="secondary" size="sm" className="w-full bg-background text-foreground font-bold hover:bg-muted">
+                    BROWSE PUBLIC LOGS
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </div>
-
-        <Card className="bg-gradient-to-r from-primary to-indigo-600 text-primary-foreground border-0">
-          <CardContent className="p-6 flex flex-col lg:flex-row items-center justify-between gap-4">
-            <div><CardTitle className="text-white">Need inspiration?</CardTitle><CardDescription className="text-white/80">Discover popular itineraries from the community</CardDescription></div>
-            <Link href="/shared/demo"><Button variant="secondary" className="rounded-full">Browse Public Trips</Button></Link>
-          </CardContent>
-        </Card>
       </div>
     </AppShell>
   )

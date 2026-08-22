@@ -19,14 +19,10 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -35,84 +31,145 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-script: var(--font-script);
 }
 
+/* Backpack Traveler Design System Tokens */
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.21 0.01 278);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.01 278);
+  --radius: 0.375rem;
+  
+  /* Backpack Traveler Light Theme: Ivory Cream Canvas + Jet Black Buttons & Text */
+  --background: oklch(0.97 0.008 80); /* Ivory Sand Cream #F6F3EE */
+  --foreground: oklch(0.12 0.01 250); /* Jet Black #111111 */
+  --card: oklch(1 0 0); /* Pure White Polaroid Card */
+  --card-foreground: oklch(0.12 0.01 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.01 278);
-  --primary: oklch(0.55 0.18 264);
-  --primary-foreground: oklch(0.98 0.01 264);
-  --secondary: oklch(0.96 0.01 286);
-  --secondary-foreground: oklch(0.24 0.01 286);
-  --muted: oklch(0.96 0.01 286);
-  --muted-foreground: oklch(0.55 0.02 285);
-  --accent: oklch(0.92 0.04 84);
-  --accent-foreground: oklch(0.24 0.06 64);
-  --destructive: oklch(0.58 0.24 27);
-  --border: oklch(0.92 0.01 286);
-  --input: oklch(0.92 0.01 286);
-  --ring: oklch(0.55 0.18 264);
-  --chart-1: oklch(0.62 0.19 264);
-  --chart-2: oklch(0.72 0.15 180);
-  --chart-3: oklch(0.78 0.14 84);
-  --chart-4: oklch(0.62 0.19 310);
-  --chart-5: oklch(0.68 0.16 40);
-  --sidebar: oklch(0.98 0 0);
-  --sidebar-foreground: oklch(0.21 0.01 278);
-  --sidebar-primary: oklch(0.55 0.18 264);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.96 0.01 286);
-  --sidebar-accent-foreground: oklch(0.24 0.01 286);
-  --sidebar-border: oklch(0.92 0.01 286);
-  --sidebar-ring: oklch(0.55 0.18 264);
+  --popover-foreground: oklch(0.12 0.01 250);
+  --primary: oklch(0.12 0.01 250); /* Jet Black Primary Buttons */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.93 0.01 80);
+  --secondary-foreground: oklch(0.12 0.01 250);
+  --muted: oklch(0.93 0.008 80);
+  --muted-foreground: oklch(0.48 0.01 250);
+  --accent: oklch(0.91 0.015 30);
+  --accent-foreground: oklch(0.12 0.01 250);
+  --destructive: oklch(0.58 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.88 0.01 80);
+  --input: oklch(0.88 0.01 80);
+  --ring: oklch(0.12 0.01 250);
+  --sidebar: oklch(0.96 0.008 80);
+  --sidebar-foreground: oklch(0.12 0.01 250);
+  --sidebar-primary: oklch(0.12 0.01 250);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.92 0.01 80);
+  --sidebar-accent-foreground: oklch(0.12 0.01 250);
+  --sidebar-border: oklch(0.88 0.01 80);
+  --sidebar-ring: oklch(0.12 0.01 250);
 }
 
 .dark {
-  --background: oklch(0.16 0.01 285);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.21 0.01 285);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.21 0.01 285);
-  --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.62 0.19 264);
-  --primary-foreground: oklch(0.16 0.01 285);
-  --secondary: oklch(0.27 0.01 286);
-  --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.27 0.01 286);
-  --muted-foreground: oklch(0.71 0.01 286);
-  --accent: oklch(0.34 0.06 64);
-  --accent-foreground: oklch(0.92 0.04 84);
-  --destructive: oklch(0.63 0.23 27);
-  --border: oklch(0.27 0.01 286);
-  --input: oklch(0.27 0.01 286);
-  --ring: oklch(0.62 0.19 264);
-  --chart-1: oklch(0.62 0.19 264);
-  --chart-2: oklch(0.72 0.15 180);
-  --chart-3: oklch(0.78 0.14 84);
-  --chart-4: oklch(0.62 0.19 310);
-  --chart-5: oklch(0.68 0.16 40);
-  --sidebar: oklch(0.21 0.01 285);
-  --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.62 0.19 264);
-  --sidebar-primary-foreground: oklch(0.97 0 0);
-  --sidebar-accent: oklch(0.27 0.01 286);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
-  --sidebar-border: oklch(0.27 0.01 286);
-  --sidebar-ring: oklch(0.62 0.19 264);
+  /* Backpack Traveler Dark Theme */
+  --background: oklch(0.13 0.01 250); /* Deep Charcoal */
+  --foreground: oklch(0.96 0.005 80);
+  --card: oklch(0.17 0.01 250);
+  --card-foreground: oklch(0.96 0.005 80);
+  --popover: oklch(0.17 0.01 250);
+  --popover-foreground: oklch(0.96 0.005 80);
+  --primary: oklch(0.96 0.005 80); /* Crisp High-Contrast Jet Black/White Button */
+  --primary-foreground: oklch(0.13 0.01 250);
+  --secondary: oklch(0.22 0.01 250);
+  --secondary-foreground: oklch(0.96 0.005 80);
+  --muted: oklch(0.20 0.01 250);
+  --muted-foreground: oklch(0.65 0.01 80);
+  --accent: oklch(0.25 0.02 25);
+  --accent-foreground: oklch(0.96 0.005 80);
+  --destructive: oklch(0.60 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.24 0.01 250);
+  --input: oklch(0.24 0.01 250);
+  --ring: oklch(0.96 0.005 80);
+  --sidebar: oklch(0.15 0.01 250);
+  --sidebar-foreground: oklch(0.96 0.005 80);
+  --sidebar-primary: oklch(0.96 0.005 80);
+  --sidebar-primary-foreground: oklch(0.15 0.01 250);
+  --sidebar-accent: oklch(0.22 0.01 250);
+  --sidebar-accent-foreground: oklch(0.96 0.005 80);
+  --sidebar-border: oklch(0.24 0.01 250);
+  --sidebar-ring: oklch(0.96 0.005 80);
 }
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
-  body { @apply bg-background text-foreground font-sans antialiased; }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/20 selection:text-primary;
+  }
+}
+
+/* Backpack Traveler Script Calligraphy & Polaroid Framing Utilities */
+.font-script {
+  font-family: var(--font-script), 'Covered By Your Grace', cursive;
+}
+
+.font-serif-heading {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.polaroid-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.12);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.polaroid-card:hover {
+  transform: translateY(-4px) rotate(0deg) scale(1.02);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
+  border-color: var(--foreground);
+}
+
+.stamp-badge-coral {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: var(--foreground);
+  color: var(--background);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Dashed Flight Path Overlay */
+.flight-path-bg {
+  background-image: radial-gradient(var(--border) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.5 0.01 250 / 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0.01 250 / 0.6);
 }
