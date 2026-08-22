@@ -29,26 +29,25 @@ flowchart LR
         C[Client Components]
     end
     subgraph "Next.js Server"
-        RSC[Server Components<br/>call queries directly]
-        SA["Server Actions ('use server')<br/>zod-validate → auth-guard → db"]
-        Q[queries/ - reads]
-        A[actions/ - writes]
+        RSC[Server Components<br/>initial render]
+        REST["REST Route Handlers<br/>src/app/api/**/route.ts"]
+        SVC[Service layer<br/>zod-validate → auth-guard → db]
         BA[Better Auth<br/>/api/auth/*]
     end
     DB[(Postgres)]
-    C -->|fetch server actions| SA
-    RSC --> Q
-    SA --> A
-    Q --> DB
-    A --> DB
+    C -->|"fetch('/api/...')"| REST
+    RSC --> SVC
+    REST --> SVC
+    SVC --> DB
     C -->|sign in/up| BA
     BA --> DB
 ```
 
-- **No REST API.** Server components import `src/server/queries/*` directly.
-- Mutations go through **server actions** (typed RPC from client components).
-- Only real HTTP route: `/api/auth/[...all]` (Better Auth handler).
-- Every query/action that touches private data starts with `requireUser()` → returns session or redirects to `/login`.
+- **REST style**: every backend operation is a route handler (`route.ts`) returning JSON. No server actions.
+- Handlers stay thin: they parse params/input, then call functions in `src/server/services/*` (so server components reuse them for first render).
+- Only non-domain route: `/api/auth/[...all]` (Better Auth handler).
+- Every protected endpoint calls `requireUser()` → session or `401`.
+- Next 16 gotcha: dynamic route `params` is a **Promise** — always `const { tripId } = await params`.
 
 ### Navigation / screens
 
@@ -138,61 +137,104 @@ Key decisions:
 - `stops` = the mockup's "sections". Ordering via `position` integers (gap numbering 0,1000,2000…); reorder writes the whole list inside one transaction — no unique constraint to fight.
 - Sharing = `is_public` + `share_slug` (uuid). Partial unique index: only non-null slugs are unique.
 
-## 4. Backend Surface
+## 4. Backend Surface (REST)
 
-### 4.1 Reads (`src/server/queries/*.ts`) — called from server components
+All handlers in `src/app/api/**/route.ts`, logic in `src/server/services/*`. Conventions:
+- Auth: session cookie (Better Auth) → `requireUser()` per handler. Public endpoints marked **no-auth**.
+- Success: `200` with JSON body. Paginated lists: `{ items, total, page }`.
+- Errors: `400` zod fail · `401` not signed in · `403` not owner · `404` missing · body `{ error: string }`.
 
-| Query | Input → Output | Used by |
+### 4.1 Trips
+
+| Method + Path | In → Out | Notes |
 |---|---|---|
-| `getMyTrips` | session → `Trip[]` + per-trip `{ stopCount, totalCostCents }` | Dashboard, My Trips, Calendar, Profile |
-| `getTrip(tripId)` | id → `{ trip, stops: (Stop & {city})[], items: ItineraryItem[] }` | Builder, View, Budget page |
-| `searchCities({ q?, country?, region?, page })` | → `Page<City>` (20/page) | Create Trip suggestions, City Search modal |
-| `getTopCities(limit=8)` | → `City[]` by popularity | Dashboard |
-| `searchActivities({ cityId, category?, maxCost?, maxDuration?, q?, page })` | → `Page<Activity>` (20/page) — PDF asks for type/cost/**duration** filters | Activity Search modal |
-| `getPublicTrip(slug)` | slug → same shape as `getTrip`, **no auth**, 404 if not public | Share page `/t/[slug]` |
-| `getPublicTrips(page)` | → `Page<{ trip, ownerName, ownerImage, stopCount }>` (12/page) | Explore |
+| `GET /api/trips` | → `Trip[]` each with `stopCount`, `totalCostCents` | own trips only |
+| `POST /api/trips` | `{ name, startDate, endDate, description?, coverImageUrl? }` → `Trip` | |
+| `GET /api/trips/:tripId` | → `{ trip, stops: (Stop&{city})[], items: ItineraryItem[] }` | the one payload powering builder/view/budget |
+| `PATCH /api/trips/:tripId` | partial of create + `budgetCents?` → `Trip` | |
+| `DELETE /api/trips/:tripId` | → `{ ok: true }` | cascades stops/items |
 
-### 4.2 Writes (`src/server/actions/*.ts`) — zod-validated server actions
+### 4.2 Stops (= mockup sections)
 
-| Action | Input (zod) | Effect |
+| Method + Path | In → Out | Notes |
 |---|---|---|
-| `createTrip` | `{ name, startDate, endDate, description?, coverImageUrl? }` | creates trip, redirects to builder |
-| `updateTrip` | partial of above + `{ budgetCents? }` | updates own trip |
-| `deleteTrip` | `{ tripId }` | cascade delete |
-| `addStop` | `{ tripId, cityId, arrivalDate, departureDate }` | appends at end |
-| `updateStop` | `{ stopId, arrivalDate?, departureDate? }` | re-checks item dates |
-| `removeStop` | `{ stopId }` | cascades items |
-| `moveStop` | `{ tripId, stopId, direction: up\|down }` | swaps positions in 1 transaction |
-| `addItemFromCatalog` | `{ stopId, activityId, date, startTime? }` | copies catalog row into snapshot |
-| `addItemCustom` | `{ stopId, title, category, costCents?, durationMins?, date, startTime? }` | free-text entry |
-| `removeItem` | `{ itemId }` | delete |
-| `moveItem` | `{ itemId, direction }` | swap within same day |
-| `togglePublic` | `{ tripId }` | flips flag; generates `shareSlug` when turning on |
-| `saveCity` / `unsaveCity` | `{ cityId }` | profile saved list |
+| `POST /api/trips/:tripId/stops` | `{ cityId, arrivalDate, departureDate }` → `Stop` | appended at end |
+| `PATCH /api/stops/:stopId` | `{ arrivalDate?, departureDate? }` → `Stop` | |
+| `DELETE /api/stops/:stopId` | → `{ ok: true }` | cascades items |
+| `POST /api/stops/:stopId/move` | `{ direction: "up"\|"down" }` → `Stop[]` | position swap, 1 transaction |
 
-Ownership check on every action: `WHERE trips.userId = session.user.id`.
+### 4.3 Itinerary items
 
-### 4.3 Auth routes (Better Auth, prebuilt)
+| Method + Path | In → Out | Notes |
+|---|---|---|
+| `POST /api/stops/:stopId/items` | catalog variant `{ activityId, date, startTime? }` or custom variant `{ title, category, costCents?, durationMins?, date, startTime? }` → `ItineraryItem` | snapshot copied on insert |
+| `PATCH /api/items/:itemId` | `{ date?, startTime?, costCents?, position? }` → `ItineraryItem` | |
+| `DELETE /api/items/:itemId` | → `{ ok: true }` | |
+| `POST /api/items/:itemId/move` | `{ direction: "up"\|"down" }` → `ItineraryItem[]` | within same day |
 
-`POST /api/auth/sign-up/email` · `POST /api/auth/sign-in/email` · `POST /api/auth/sign-out` · `GET /api/auth/get-session`. Client wrapper: `src/lib/auth/client.ts`.
+### 4.4 Sharing
+
+| Method + Path | In → Out | Notes |
+|---|---|---|
+| `POST /api/trips/:tripId/share` | `{ isPublic: boolean }` → `{ isPublic, shareSlug? }` | generates uuid slug when turning on |
+| `GET /api/public/trips?page=` | → `Page<{ trip, ownerName, ownerImage, stopCount }>` (12/page) | **no-auth**, Explore grid |
+| `GET /api/public/trips/:slug` | → same shape as trip GET | **no-auth**, share page; 404 unless public |
+
+### 4.5 Search & misc
+
+| Method + Path | In → Out | Notes |
+|---|---|---|
+| `GET /api/cities?q=&country=&region=&page=` | → `Page<City>` (20/page) | |
+| `GET /api/cities/top?limit=8` | → `City[]` by popularity | dashboard |
+| `GET /api/cities/:cityId/activities?category=&maxCost=&maxDuration=&q=&page=` | → `Page<Activity>` (20/page) | type/cost/duration filters per PDF |
+| `GET /api/me/saved-cities` | → `City[]` | profile |
+| `PUT /api/me/saved-cities/:cityId` / `DELETE …` | → `{ ok: true }` | save/unsave |
+
+### 4.6 Auth routes (Better Auth, prebuilt)
+
+`POST /api/auth/sign-up/email` · `POST /api/auth/sign-in/email` · `POST /api/auth/sign-out` · `GET /api/auth/get-session`. Client wrapper: `src/lib/auth/client.ts`. Frontend calls REST via a thin typed helper `src/lib/api-client.ts` (`api.get/post/patch/delete`) that throws on non-2xx.
+
+Route-handler folder map:
+
+```
+src/app/api/
+├── auth/[...all]/route.ts
+├── trips/route.ts                      # GET list, POST create
+├── trips/[tripId]/route.ts             # GET full, PATCH, DELETE
+├── trips/[tripId]/share/route.ts       # POST toggle public
+├── trips/[tripId]/stops/route.ts       # POST add stop
+├── stops/[stopId]/route.ts             # PATCH, DELETE
+├── stops/[stopId]/move/route.ts        # POST reorder
+├── stops/[stopId]/items/route.ts       # POST add item
+├── items/[itemId]/route.ts             # PATCH, DELETE
+├── items/[itemId]/move/route.ts        # POST reorder
+├── cities/route.ts                     # GET search
+├── cities/top/route.ts                 # GET top
+├── cities/[cityId]/activities/route.ts # GET activities for city
+├── public/trips/route.ts               # GET explore (no-auth)
+├── public/trips/[slug]/route.ts        # GET shared trip (no-auth)
+└── me/saved-cities/[cityId]/route.ts   # PUT / DELETE (+ GET on saved-cities)
+```
+
+Ownership check on every private endpoint: `WHERE trips.userId = session.user.id`.
 
 ## 5. Screen ↔ Data Map
 
 | # | Screen (mockup) | Route | Gets data from |
 |---|---|---|---|
 | 1–2 | Login / Register | `/login`, `/register` | `authClient.signIn/signUp` (client) |
-| 3 | Landing/Dashboard | `/dashboard` | `session`, `getMyTrips`, `getTopCities(8)` |
-| 4 | Create Trip | `/trips/new` | form → `createTrip`; suggestion grid → `searchActivities(cityId)` preview |
-| 5 | Build Itinerary (sections) | `/trips/[id]` | `getTrip(id)`; modals call `searchCities` / `searchActivities`; buttons fire add/update/move/remove actions |
-| 6 | My Trips (Ongoing/Upcoming/Completed) | `/trips` | `getMyTrips` — grouping done client-side vs today's date |
-| 7 | Profile | `/profile` | session user, `getMyTrips`, saved cities |
-| 8 | City/Activity Search | modal over builder | `searchCities`, `searchActivities` with filters + pagination |
-| 9 | Itinerary View + Budget | `/trips/[id]?view=read` | same single `getTrip(id)` payload — frontend groups items by day, sums by category/date. No separate budget endpoint. |
-| 10 | Community tab → **Explore** | `/explore` | `getPublicTrips(page)` |
-| 11 | Calendar View | `/calendar` | `getMyTrips` — draws bars between start/end dates |
+| 3 | Landing/Dashboard | `/dashboard` | `GET /api/trips`, `GET /api/cities/top?limit=8` |
+| 4 | Create Trip | `/trips/new` | form → `POST /api/trips`; suggestion grid → `GET /api/cities/:cityId/activities` preview |
+| 5 | Build Itinerary (sections) | `/trips/[id]` | `GET /api/trips/:tripId`; modals call `GET /api/cities`, `GET /api/cities/:cityId/activities`; buttons fire the stop/item endpoints (4.2, 4.3) |
+| 6 | My Trips (Ongoing/Upcoming/Completed) | `/trips` | `GET /api/trips` — grouping done client-side vs today's date |
+| 7 | Profile | `/profile` | session user, `GET /api/trips`, `GET /api/me/saved-cities` |
+| 8 | City/Activity Search | modal over builder | `GET /api/cities`, `GET /api/cities/:cityId/activities` with filters + pagination |
+| 9 | Itinerary View + Budget | `/trips/[id]?view=read` | same single `GET /api/trips/:tripId` payload — frontend groups items by day, sums by category/date. No separate budget endpoint. |
+| 10 | Community tab → **Explore** | `/explore` | `GET /api/public/trips?page=` |
+| 11 | Calendar View | `/calendar` | `GET /api/trips` — draws bars between start/end dates |
 | 12 | Admin Panel | — | **CUT** (optional in spec) |
 
-Overbudget-day alert (screen 9): compare each day's sum against `budgetCents ÷ tripDays` — computed client-side from `getTrip` payload. Same payload gives **average cost per day** (PDF requirement) for free.
+Overbudget-day alert (screen 9): compare each day's sum against `budgetCents ÷ tripDays` — computed client-side from the trip payload. Same payload gives **average cost per day** (PDF requirement) for free.
 
 ## 6. Joins & Aggregations (where they happen)
 
