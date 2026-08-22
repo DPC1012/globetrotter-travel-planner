@@ -74,10 +74,10 @@ erDiagram
     user ||--o{ account : has
     user ||--o{ user_saved_cities : saves
     trips ||--|{ stops : contains
-    stops }o--|| cities : located-in
-    stops ||--o{ trip_activities : scheduled-as
-    activities }o--|| cities : offered-in
-    trip_activities }o--o| activities : snapshot-of
+    stops }o--|| cities : in_city
+    stops ||--o{ trip_activities : schedules
+    activities }o--|| cities : offered_in
+    trip_activities }o--o| activities : snapshots
 
     user { text id PK
            text name
@@ -94,7 +94,7 @@ erDiagram
             date end_date
             int budget_cents
             boolean is_public
-            text share_slug UK-null
+            text share_slug UK
             text cover_image_url }
     cities { text id PK
              text name
