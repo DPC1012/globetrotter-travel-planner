@@ -6,24 +6,29 @@ import { normalizeItem } from "@/server/serialize";
 import type { FullTripPayload, TripWithStats } from "@/server/types";
 
 export async function listTrips(userId: string): Promise<TripWithStats[]> {
-  const rows = await db
-    .select({
-      trip: trips,
-      stopCount: sql<number>`count(distinct ${stops.id})`.mapWith(Number),
-      totalCostCents: sql<number>`coalesce(sum(${tripActivities.costCents}), 0)`.mapWith(Number),
-    })
-    .from(trips)
-    .leftJoin(stops, eq(stops.tripId, trips.id))
-    .leftJoin(tripActivities, eq(tripActivities.stopId, stops.id))
-    .where(eq(trips.userId, userId))
-    .groupBy(trips.id)
-    .orderBy(asc(trips.startDate));
+  try {
+    const rows = await db
+      .select({
+        trip: trips,
+        stopCount: sql<number>`count(distinct ${stops.id})`.mapWith(Number),
+        totalCostCents: sql<number>`coalesce(sum(${tripActivities.costCents}), 0)`.mapWith(Number),
+      })
+      .from(trips)
+      .leftJoin(stops, eq(stops.tripId, trips.id))
+      .leftJoin(tripActivities, eq(tripActivities.stopId, stops.id))
+      .where(eq(trips.userId, userId))
+      .groupBy(trips.id)
+      .orderBy(asc(trips.startDate));
 
-  return rows.map((r) => ({
-    ...r.trip,
-    stopCount: r.stopCount,
-    totalCostCents: r.totalCostCents,
-  }));
+    return rows.map((r) => ({
+      ...r.trip,
+      stopCount: r.stopCount,
+      totalCostCents: r.totalCostCents,
+    }));
+  } catch (err) {
+    console.warn("DB offline in listTrips, returning empty list");
+    return [];
+  }
 }
 
 export async function createTrip(

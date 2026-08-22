@@ -68,11 +68,17 @@ export async function listPublicTrips(
 }
 
 export async function getSharedTripPayload(slug: string) {
-  const [trip] = await db
-    .select({ id: trips.id })
-    .from(trips)
-    .where(and(eq(trips.shareSlug, slug), eq(trips.isPublic, true)));
-  if (!trip) throw new HttpError(404, "Trip not found");
+  try {
+    const [trip] = await db
+      .select({ id: trips.id })
+      .from(trips)
+      .where(and(eq(trips.shareSlug, slug), eq(trips.isPublic, true)));
+    if (!trip) throw new HttpError(404, "Trip not found");
 
-  return getTripPayload(trip.id);
+    return await getTripPayload(trip.id);
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    throw new HttpError(404, "Trip not found");
+  }
 }
+
