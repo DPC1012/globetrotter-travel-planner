@@ -364,6 +364,35 @@ async function main() {
     }
   }
 
+  /* ---------- saved cities ---------- */
+
+  const savedList = await call("GET", "/api/me/saved-cities");
+  check("saved cities starts empty", savedList.status === 200 && savedList.json.length === 0, {
+    status: savedList.status,
+    len: savedList.json?.length,
+  });
+
+  if (cityId) {
+    const put = await call("PUT", `/api/me/saved-cities/${cityId}`);
+    check("save city", put.status === 200 && put.json.ok === true, put);
+
+    const putAgain = await call("PUT", `/api/me/saved-cities/${cityId}`);
+    check("re-save idempotent", putAgain.status === 200, putAgain);
+
+    const after = await call("GET", "/api/me/saved-cities");
+    check(
+      "saved city listed",
+      after.status === 200 && after.json.length === 1 && after.json[0].id === cityId,
+      after.json,
+    );
+
+    const delSaved = await call("DELETE", `/api/me/saved-cities/${cityId}`);
+    check("unsave city", delSaved.status === 200 && delSaved.json.ok === true, delSaved);
+
+    const empty = await call("GET", "/api/me/saved-cities");
+    check("saved cities empty again", empty.status === 200 && empty.json.length === 0, empty.json);
+  }
+
   const savedCookie = cookie;
   cookie = "";
   const anon = await call("GET", "/api/trips");
