@@ -85,11 +85,11 @@ export default function ProfilePage() {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Full Name</Label>
-                <Input defaultValue={user.name || ""} readOnly className="rounded-xl bg-muted/30" />
+                <Input value={user.name || ""} readOnly className="rounded-xl bg-muted/30" />
               </div>
               <div className="space-y-2">
                 <Label>Email Address</Label>
-                <Input defaultValue={user.email || ""} readOnly className="rounded-xl bg-muted/30" />
+                <Input value={user.email || ""} readOnly className="rounded-xl bg-muted/30" />
               </div>
             </div>
           </CardContent>
