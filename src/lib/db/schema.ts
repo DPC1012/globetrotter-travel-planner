@@ -10,6 +10,7 @@ import {
   primaryKey,
   real,
   text,
+  time,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -83,7 +84,6 @@ export const activityCategory = pgEnum("activity_category", [
   "nightlife",
   "transport",
   "lodging",
-  "meals",
   "other",
 ]);
 
@@ -195,7 +195,7 @@ export const tripActivities = pgTable(
     durationMins: integer("duration_mins").notNull().default(0),
     costCents: integer("cost_cents").notNull().default(0),
     date: date("date", { mode: "string" }).notNull(),
-    startTime: text("start_time"),
+    startTime: time("start_time"),
     position: integer("position").notNull().default(0),
   },
   (t) => [
