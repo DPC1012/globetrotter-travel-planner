@@ -61,22 +61,27 @@ export function Sidebar() {
         </div>
         {navItems.map((item) => {
           const isActive =
-            pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : item.href === "/trips"
+              ? pathname === "/trips" || (pathname.startsWith("/trips/") && !pathname.startsWith("/trips/new"))
+              : pathname === item.href || pathname.startsWith(item.href + "/")
+
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-sm px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 group relative",
+                "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold tracking-wide transition-all duration-200 group relative",
                 isActive
-                  ? "bg-foreground text-background shadow-md"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "bg-primary/15 text-primary shadow-sm border border-primary/30"
+                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
               )}
             >
-              <item.icon className={cn("h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110", isActive ? "text-background" : "text-muted-foreground group-hover:text-foreground")} />
+              <item.icon className={cn("h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
               <span>{item.label}</span>
               {isActive && (
-                <span className="absolute right-2.5 h-2 w-2 rounded-full bg-background animate-pulse" />
+                <span className="absolute right-3 h-2 w-2 rounded-full bg-primary shadow-sm" />
               )}
             </Link>
           )
@@ -90,39 +95,39 @@ export function Sidebar() {
         <Link
           href="/shared/demo"
           className={cn(
-            "flex items-center gap-3 rounded-sm px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider transition-all group",
+            "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold tracking-wide transition-all group relative",
             pathname.startsWith("/shared") || pathname.startsWith("/t/")
-              ? "bg-foreground text-background shadow-md"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              ? "bg-primary/15 text-primary shadow-sm border border-primary/30"
+              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
           )}
         >
-          <Share2 className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform" />
+          <Share2 className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform text-muted-foreground group-hover:text-foreground" />
           <span>Public Itineraries</span>
         </Link>
 
         <Link
           href="/profile"
           className={cn(
-            "flex items-center gap-3 rounded-sm px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider transition-all group",
+            "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold tracking-wide transition-all group relative",
             pathname.startsWith("/profile")
-              ? "bg-foreground text-background shadow-md"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              ? "bg-primary/15 text-primary shadow-sm border border-primary/30"
+              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
           )}
         >
-          <User className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform" />
+          <User className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform text-muted-foreground group-hover:text-foreground" />
           <span>Profile & Settings</span>
         </Link>
 
         <Link
           href="/admin"
           className={cn(
-            "flex items-center gap-3 rounded-sm px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider transition-all group",
+            "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold tracking-wide transition-all group relative",
             pathname.startsWith("/admin")
-              ? "bg-foreground text-background shadow-md"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              ? "bg-primary/15 text-primary shadow-sm border border-primary/30"
+              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
           )}
         >
-          <ShieldCheck className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform" />
+          <ShieldCheck className="h-4 w-4 shrink-0 group-hover:scale-110 transition-transform text-muted-foreground group-hover:text-foreground" />
           <span>Admin Analytics</span>
         </Link>
       </nav>
