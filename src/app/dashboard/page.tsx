@@ -22,55 +22,33 @@ import {
   Share2,
 } from "lucide-react"
 
+import { loadUserTrips } from "@/lib/user-trips"
+
 export default function Dashboard() {
   const { user } = useUserSession()
-  const [userTrips, setUserTrips] = useState<Trip[]>(fallbackTrips)
+  const [userTrips, setUserTrips] = useState<Trip[]>([])
   const [topCities, setTopCities] = useState<City[]>(fallbackCities.slice(0, 3))
   const [loading, setLoading] = useState(true)
 
   const userName = user.name ? user.name.split(" ")[0] : "Traveler"
+  const isDemoUser = user.email === "demo@globetrotter.com" || user.id === "user-1"
 
   useEffect(() => {
     async function loadData() {
-      const [apiTrips, apiCities] = await Promise.all([
-        apiGetTrips(),
+      const [tripsData, apiCities] = await Promise.all([
+        loadUserTrips(user.id, isDemoUser),
         apiGetTopCities(),
       ])
 
-      if (apiTrips && apiTrips.length > 0) {
-        const mapped: Trip[] = apiTrips.map((t) => ({
-          id: t.id,
-          userId: t.userId,
-          name: t.name,
-          description: t.description || "",
-          startDate: t.startDate,
-          endDate: t.endDate,
-          budgetCents: t.budgetCents || 0,
-          isPublic: t.isPublic,
-          shareSlug: t.shareSlug,
-          coverImageUrl: t.coverImageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
-          status: "upcoming",
-          stops: Array.from({ length: t.stopCount || 0 }, (_, i) => ({
-            id: `stop-${i}`,
-            tripId: t.id,
-            cityId: "city",
-            city: fallbackCities[i % fallbackCities.length],
-            position: i * 1000,
-            arrivalDate: t.startDate,
-            departureDate: t.endDate,
-            activities: [],
-          })),
-        }))
-        setUserTrips(mapped)
-      }
-
+      setUserTrips(tripsData)
       if (apiCities && apiCities.length > 0) {
         setTopCities(apiCities.slice(0, 3))
       }
       setLoading(false)
     }
+
     loadData()
-  }, [])
+  }, [user.id, isDemoUser])
 
   const upcomingTrips = userTrips.filter((t) => t.status === "upcoming" || t.status === "ongoing")
   const totalBudgetCents = userTrips.reduce((acc, curr) => acc + (curr.budgetCents || 0), 0)

@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Upload, Sparkles, Plus } from "lucide-react"
-import { apiCreateTrip } from "@/lib/api-client"
+import { useUserSession } from "@/lib/user-session"
+import { saveNewUserTrip } from "@/lib/user-trips"
 
 export default function CreateTripPage() {
   const router = useRouter()
+  const { user } = useUserSession()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState("")
 
@@ -28,11 +30,17 @@ export default function CreateTripPage() {
     const description = String(form.get("description") || "")
     const coverImageUrl = String(form.get("coverImageUrl") || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200")
 
-    const res = await apiCreateTrip({ name, startDate, endDate, description, coverImageUrl })
-    if (res && res.id) {
-      router.push(`/trips/${res.id}/builder`)
+    const createdTrip = await saveNewUserTrip(user.id, {
+      name,
+      startDate,
+      endDate,
+      description,
+      coverImageUrl,
+    })
+
+    if (createdTrip && createdTrip.id) {
+      router.push(`/trips/${createdTrip.id}/builder`)
     } else {
-      // Fallback navigation
       router.push("/trips")
     }
     setPending(false)

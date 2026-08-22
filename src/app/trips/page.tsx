@@ -15,7 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { trips as initialTrips, formatCurrency, Trip, cities as fallbackCities } from "@/lib/data"
-import { apiGetTrips, apiDeleteTrip } from "@/lib/api-client"
+import { useUserSession } from "@/lib/user-session"
+import { loadUserTrips, deleteUserTrip } from "@/lib/user-trips"
 import {
   Plus,
   Search,
@@ -32,48 +33,26 @@ import {
 } from "lucide-react"
 
 export default function MyTripsPage() {
-  const [trips, setTrips] = useState<Trip[]>(initialTrips)
+  const { user } = useUserSession()
+  const [trips, setTrips] = useState<Trip[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [loading, setLoading] = useState(true)
 
+  const isDemoUser = user.email === "demo@globetrotter.com" || user.id === "user-1"
+
   useEffect(() => {
     async function loadTrips() {
-      const apiTrips = await apiGetTrips()
-      if (apiTrips && apiTrips.length > 0) {
-        const mapped: Trip[] = apiTrips.map((t) => ({
-          id: t.id,
-          userId: t.userId,
-          name: t.name,
-          description: t.description || "",
-          startDate: t.startDate,
-          endDate: t.endDate,
-          budgetCents: t.budgetCents || 0,
-          isPublic: t.isPublic,
-          shareSlug: t.shareSlug,
-          coverImageUrl: t.coverImageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
-          status: "upcoming",
-          stops: Array.from({ length: t.stopCount || 0 }, (_, i) => ({
-            id: `stop-${i}`,
-            tripId: t.id,
-            cityId: "city",
-            city: fallbackCities[i % fallbackCities.length],
-            position: i * 1000,
-            arrivalDate: t.startDate,
-            departureDate: t.endDate,
-            activities: [],
-          })),
-        }))
-        setTrips(mapped)
-      }
+      const data = await loadUserTrips(user.id, isDemoUser)
+      setTrips(data)
       setLoading(false)
     }
     loadTrips()
-  }, [])
+  }, [user.id, isDemoUser])
 
   const handleDeleteTrip = async (id: string) => {
-    await apiDeleteTrip(id)
+    await deleteUserTrip(user.id, id)
     setTrips((prev) => prev.filter((t) => t.id !== id))
   }
 

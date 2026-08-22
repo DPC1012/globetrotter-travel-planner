@@ -23,9 +23,13 @@ import {
   ExternalLink,
 } from "lucide-react"
 
+import { useUserSession } from "@/lib/user-session"
+import { findUserTripById } from "@/lib/user-trips"
+
 export default function ItineraryViewPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const tripId = resolvedParams.id
+  const { user } = useUserSession()
 
   const [trip, setTrip] = useState<Trip>(fallbackTrips[0])
   const [viewMode, setViewMode] = useState<"timeline" | "cities">("timeline")
@@ -34,53 +38,14 @@ export default function ItineraryViewPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => {
     async function loadTrip() {
-      const data = await apiGetTripById(tripId)
-      if (data) {
-        const fullTrip: Trip = {
-          id: data.trip.id,
-          userId: data.trip.userId,
-          name: data.trip.name,
-          description: data.trip.description || "",
-          startDate: data.trip.startDate,
-          endDate: data.trip.endDate,
-          budgetCents: data.trip.budgetCents || 0,
-          isPublic: data.trip.isPublic,
-          shareSlug: data.trip.shareSlug,
-          coverImageUrl: data.trip.coverImageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
-          status: "upcoming",
-          stops: data.stops.map((s) => ({
-            id: s.id,
-            tripId: s.tripId,
-            cityId: s.cityId,
-            city: s.city,
-            position: s.position,
-            arrivalDate: s.arrivalDate,
-            departureDate: s.departureDate,
-            activities: data.items
-              .filter((item) => item.stopId === s.id)
-              .map((item) => ({
-                id: item.id,
-                stopId: item.stopId,
-                activityId: item.activityId || undefined,
-                title: item.title,
-                category: (item.category as any) || "sightseeing",
-                durationMins: item.durationMins,
-                costCents: item.costCents,
-                date: item.date,
-                startTime: item.startTime || "09:00",
-                position: item.position,
-              })),
-          })),
-        }
-        setTrip(fullTrip)
-      } else {
-        const found = fallbackTrips.find((t) => t.id === tripId) || fallbackTrips[0]
-        setTrip(found)
+      const foundTrip = await findUserTripById(user.id, tripId)
+      if (foundTrip) {
+        setTrip(foundTrip)
       }
       setLoading(false)
     }
     loadTrip()
-  }, [tripId])
+  }, [tripId, user.id])
 
   const handleShare = async () => {
     const nextPublicState = !trip.isPublic
