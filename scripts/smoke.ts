@@ -110,13 +110,62 @@ async function main() {
 
   const citiesRes = await call("GET", "/api/cities?page=1");
   let cityId = citiesRes.json?.items?.[0]?.id as string | undefined;
-  check("cities list available for stops test", !!cityId, citiesRes.json);
+  check(
+    "cities list paginated",
+    citiesRes.status === 200 &&
+      Array.isArray(citiesRes.json.items) &&
+      typeof citiesRes.json.total === "number" &&
+      citiesRes.json.items.length <= 20,
+    { status: citiesRes.status, total: citiesRes.json?.total },
+  );
 
   if (!cityId) {
     const { db } = await import("../src/lib/db");
     const { cities } = await import("../src/lib/db/schema");
     const [row] = await db.select({ id: cities.id }).from(cities).limit(1);
     cityId = row?.id;
+  }
+
+  if (citiesRes.status === 200 && cityId) {
+    const search = await call("GET", "/api/cities?q=tok&country=&page=1");
+    check(
+      "city search q filter",
+      search.status === 200 &&
+        search.json.items.some((c: any) => c.name === "Tokyo"),
+      search.json?.items?.map?.((c: any) => c.name),
+    );
+
+    const top = await call("GET", "/api/cities/top?limit=5");
+    check(
+      "top cities by popularity",
+      top.status === 200 &&
+        top.json.length === 5 &&
+        top.json[0].popularity >= top.json[4].popularity,
+      top.json?.map?.((c: any) => c.popularity),
+    );
+
+    const acts = await call("GET", `/api/cities/${cityId}/activities?page=1`);
+    check(
+      "activities for city paginated",
+      acts.status === 200 &&
+        Array.isArray(acts.json.items) &&
+        acts.json.items.every((a: any) => a.cityId === cityId),
+      { status: acts.status },
+    );
+
+    const [someCityAct] = acts.json.items ?? [];
+    if (someCityAct) {
+      const filtered = await call(
+        "GET",
+        `/api/cities/${cityId}/activities?category=${someCityAct.category}&maxCost=999999&page=1`,
+      );
+      check(
+        "activity filters apply",
+        filtered.status === 200 &&
+          filtered.json.items.every((a: any) => a.category === someCityAct.category),
+        { total: filtered.json?.total },
+      );
+    }
   }
 
   if (cityId) {
