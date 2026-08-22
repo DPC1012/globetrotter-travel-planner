@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { currentUser } from "@/lib/data"
+import { useUserSession } from "@/lib/user-session"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -34,6 +34,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { user, logout } = useUserSession()
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border/60 bg-sidebar/90 backdrop-blur-xl lg:flex transition-colors">
@@ -133,13 +134,13 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-border/60">
-        <Link
-          href="/login"
-          className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10"
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors rounded-lg hover:bg-destructive/10 text-left"
         >
           <LogOut className="h-4 w-4" />
-          <span>Sign out ({currentUser.name})</span>
-        </Link>
+          <span>Sign out ({user.name})</span>
+        </button>
       </div>
     </aside>
   )

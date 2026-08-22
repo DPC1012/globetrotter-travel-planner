@@ -10,18 +10,17 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { useSession, signOut } from "@/lib/auth/client"
+import { useUserSession } from "@/lib/user-session"
 import { apiGetSavedCities, apiRemoveSavedCity } from "@/lib/api-client"
-import { City, currentUser } from "@/lib/data"
+import { City } from "@/lib/data"
 import { LogOut, Heart, MapPin, UserCheck, Trash2 } from "lucide-react"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { user, logout, isAuthenticated } = useUserSession()
   const [savedCities, setSavedCities] = useState<City[]>([])
   const [loading, setLoading] = useState(true)
 
-  const user = session?.user || currentUser
   const userInitials = user.name ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "GT"
 
   useEffect(() => {
@@ -38,11 +37,6 @@ export default function ProfilePage() {
     setSavedCities((prev) => prev.filter((c) => c.id !== cityId))
   }
 
-  async function handleSignOut() {
-    await signOut()
-    router.push("/login")
-  }
-
   return (
     <AppShell>
       <div className="max-w-4xl space-y-6">
@@ -51,11 +45,16 @@ export default function ProfilePage() {
             <h1 className="text-3xl font-bold tracking-tight">Profile & Preferences</h1>
             <p className="text-muted-foreground text-sm">Manage your account credentials and saved wishlist destinations.</p>
           </div>
-          {session && (
-            <Button onClick={handleSignOut} variant="destructive" className="rounded-xl font-bold gap-2">
-              <LogOut className="h-4 w-4" /> Sign Out
-            </Button>
-          )}
+          <Button
+            onClick={async () => {
+              await logout()
+              router.push("/login")
+            }}
+            variant="destructive"
+            className="rounded-xl font-bold gap-2"
+          >
+            <LogOut className="h-4 w-4" /> Sign Out
+          </Button>
         </div>
 
         <Card className="border-border/60 shadow-md rounded-2xl">
@@ -78,7 +77,7 @@ export default function ProfilePage() {
                 <h3 className="font-bold text-lg">{user.name || "Traveler"}</h3>
                 <p className="text-xs text-muted-foreground">{user.email}</p>
                 <Badge variant="outline" className="mt-2 text-[10px] font-bold border-primary/30 text-primary">
-                  {session ? "Authenticated Session" : "Guest Mode"}
+                  {isAuthenticated ? "Authenticated Session" : "Guest Mode"}
                 </Badge>
               </div>
             </div>

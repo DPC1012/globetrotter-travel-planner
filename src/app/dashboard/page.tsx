@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { trips as fallbackTrips, cities as fallbackCities, formatCurrency, currentUser, Trip, City } from "@/lib/data"
 import { apiGetTrips, apiGetTopCities } from "@/lib/api-client"
-import { useSession } from "@/lib/auth/client"
+import { useUserSession } from "@/lib/user-session"
 import {
   Plus,
   MapPin,
@@ -23,12 +23,11 @@ import {
 } from "lucide-react"
 
 export default function Dashboard() {
-  const { data: session } = useSession()
+  const { user } = useUserSession()
   const [userTrips, setUserTrips] = useState<Trip[]>(fallbackTrips)
   const [topCities, setTopCities] = useState<City[]>(fallbackCities.slice(0, 3))
   const [loading, setLoading] = useState(true)
 
-  const user = session?.user || currentUser
   const userName = user.name ? user.name.split(" ")[0] : "Traveler"
 
   useEffect(() => {

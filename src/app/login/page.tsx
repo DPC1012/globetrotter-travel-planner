@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlaneTakeoff, Sparkles, ArrowRight } from "lucide-react"
 import { signIn, signUp } from "@/lib/auth/client"
+import { useUserSession } from "@/lib/user-session"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { saveLocalSession } = useUserSession()
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
 
@@ -20,19 +22,26 @@ export default function LoginPage() {
     setPending(true)
     setError("")
     const form = new FormData(event.currentTarget)
+    const email = String(form.get("email"))
+    const password = String(form.get("password"))
+
     try {
       const result = await signIn.email({
-        email: String(form.get("email")),
-        password: String(form.get("password")),
+        email,
+        password,
         callbackURL: "/dashboard",
       })
       if (result.error) {
-        // Fallback to dashboard in demo mode if DB is disconnected
-        router.push("/dashboard")
+        // Fallback local session for offline DB
+        const derivedName = email.split("@")[0].replace(".", " ")
+        saveLocalSession(derivedName.charAt(0).toUpperCase() + derivedName.slice(1), email)
       } else {
-        router.push("/dashboard")
+        saveLocalSession(email.split("@")[0], email)
       }
+      router.push("/dashboard")
     } catch {
+      const derivedName = email.split("@")[0].replace(".", " ")
+      saveLocalSession(derivedName.charAt(0).toUpperCase() + derivedName.slice(1), email)
       router.push("/dashboard")
     }
   }
@@ -42,20 +51,22 @@ export default function LoginPage() {
     setPending(true)
     setError("")
     const form = new FormData(event.currentTarget)
+    const name = String(form.get("name"))
+    const email = String(form.get("email"))
+    const password = String(form.get("password"))
+
     try {
       const result = await signUp.email({
-        email: String(form.get("email")),
-        password: String(form.get("password")),
-        name: String(form.get("name")),
+        email,
+        password,
+        name,
         callbackURL: "/dashboard",
       })
-      if (result.error) {
-        // Fallback to dashboard in demo mode if DB is disconnected
-        router.push("/dashboard")
-      } else {
-        router.push("/dashboard")
-      }
+      // Save local session so the new user name is immediately active across app
+      saveLocalSession(name || "New Traveler", email)
+      router.push("/dashboard")
     } catch {
+      saveLocalSession(name || "New Traveler", email)
       router.push("/dashboard")
     }
   }
@@ -69,8 +80,10 @@ export default function LoginPage() {
         password: "password123",
         callbackURL: "/dashboard",
       })
+      saveLocalSession("Alex Rivera", "demo@globetrotter.com")
       router.push("/dashboard")
     } catch {
+      saveLocalSession("Alex Rivera", "demo@globetrotter.com")
       router.push("/dashboard")
     }
   }

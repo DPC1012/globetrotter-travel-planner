@@ -7,14 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { currentUser } from "@/lib/data"
-import { useSession } from "@/lib/auth/client"
+import { useUserSession } from "@/lib/user-session"
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isDark, setIsDark] = useState(true)
-  const { data: session } = useSession()
+  const { user, isAuthenticated } = useUserSession()
 
-  const user = session?.user || currentUser
   const userInitials = user.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "GT"
 
   const toggleTheme = () => {
@@ -78,7 +77,7 @@ export function Header() {
                 <p className="text-xs font-bold leading-none text-foreground group-hover:text-primary transition-colors">
                   {user.name || "Sign In"}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{session ? "Traveler" : "Guest Mode"}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{isAuthenticated ? "Traveler" : "Guest Mode"}</p>
               </div>
             </div>
           </Link>
