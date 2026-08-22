@@ -14,7 +14,7 @@ export type City = {
   id: string
   name: string
   country: string
-  region: "Europe" | "Asia" | "North America" | "South America" | "Africa" | "Oceania"
+  region: string
   lat: number
   lng: number
   costIndex: number // 1-100
