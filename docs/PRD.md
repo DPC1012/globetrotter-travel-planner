@@ -120,7 +120,7 @@ erDiagram
             date departure_date }
     trip_activities { text id PK
                       text stop_id FK
-                      text activity_id FK-null
+                      text activity_id FK
                       text title
                       enum category
                       int duration_mins
