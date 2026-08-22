@@ -14,6 +14,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+If you consume this auth API from an app on a different port/host (e.g. the frontend dev server), add its origin to `.env`:
+
+```bash
+BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3001
+```
+
 ## Useful scripts
 
 | Command | What it does |

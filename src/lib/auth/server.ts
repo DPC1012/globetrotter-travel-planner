@@ -4,6 +4,15 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
+if (process.env.NODE_ENV === "production" && !process.env.BETTER_AUTH_SECRET) {
+  throw new Error("BETTER_AUTH_SECRET is required in production.");
+}
+
+const trustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 export const auth = betterAuth({
   appName: "GlobeTrotter",
   database: drizzleAdapter(db, {
@@ -29,6 +38,7 @@ export const auth = betterAuth({
     },
   },
   plugins: [nextCookies()],
+  ...(trustedOrigins.length > 0 ? { trustedOrigins } : {}),
 });
 
 export type Session = typeof auth.$Infer.Session;
