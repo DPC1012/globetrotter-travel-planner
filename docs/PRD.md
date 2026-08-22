@@ -241,6 +241,14 @@ Offset (not keyset) is deliberate: simplest shadcn pagination UI, datasets are s
 
 Branch → PR → code review → merge to `main`. npm only. Working skeleton by 1 PM beats polished nothing at 5.
 
+**Micro-commits.** Huge commits are painful to review and impossible to bisect when a bug sneaks in. Rules:
+- One logical change per commit — a commit should be reviewable in under ~60 seconds.
+- Commit every time something small becomes true: `feat: addStop action`, `fix: guard moveStop against empty trip`, `chore: seed paris activities`.
+- Conventional prefixes so scanning history is fast: `feat:` `fix:` `docs:` `refactor:` `chore:`.
+- Never mix "add feature X" with "also fixed unrelated thing Y" in one commit — Y gets its own.
+- Push often; rebase instead of merge commits inside a PR.
+- PRs stay small too: if a PR touches >10 files, split it.
+
 ## 11. References (source docs, in `docs/`)
 
 - **`GlobeTrotter.pdf`** — official problem statement: vision, 13 screens, feature requirements. Every screen in section 5 maps to it; deviations are listed as cuts in section 8.
