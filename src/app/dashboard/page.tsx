@@ -1,11 +1,14 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { AppShell } from "@/components/layout/app-shell"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { trips, cities, formatCurrency, currentUser } from "@/lib/data"
+import { trips as fallbackTrips, cities as fallbackCities, formatCurrency, currentUser, Trip, City } from "@/lib/data"
+import { apiGetTrips, apiGetTopCities } from "@/lib/api-client"
+import { useSession } from "@/lib/auth/client"
 import {
   Plus,
   MapPin,
@@ -20,9 +23,59 @@ import {
 } from "lucide-react"
 
 export default function Dashboard() {
-  const upcomingTrips = trips.filter((t) => t.status === "upcoming")
-  const totalBudgetCents = trips.reduce((acc, curr) => acc + curr.budgetCents, 0)
-  const totalStops = trips.reduce((acc, curr) => acc + curr.stops.length, 0)
+  const { data: session } = useSession()
+  const [userTrips, setUserTrips] = useState<Trip[]>(fallbackTrips)
+  const [topCities, setTopCities] = useState<City[]>(fallbackCities.slice(0, 3))
+  const [loading, setLoading] = useState(true)
+
+  const user = session?.user || currentUser
+  const userName = user.name ? user.name.split(" ")[0] : "Traveler"
+
+  useEffect(() => {
+    async function loadData() {
+      const [apiTrips, apiCities] = await Promise.all([
+        apiGetTrips(),
+        apiGetTopCities(),
+      ])
+
+      if (apiTrips && apiTrips.length > 0) {
+        const mapped: Trip[] = apiTrips.map((t) => ({
+          id: t.id,
+          userId: t.userId,
+          name: t.name,
+          description: t.description || "",
+          startDate: t.startDate,
+          endDate: t.endDate,
+          budgetCents: t.budgetCents || 0,
+          isPublic: t.isPublic,
+          shareSlug: t.shareSlug,
+          coverImageUrl: t.coverImageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
+          status: "upcoming",
+          stops: Array.from({ length: t.stopCount || 0 }, (_, i) => ({
+            id: `stop-${i}`,
+            tripId: t.id,
+            cityId: "city",
+            city: fallbackCities[i % fallbackCities.length],
+            position: i * 1000,
+            arrivalDate: t.startDate,
+            departureDate: t.endDate,
+            activities: [],
+          })),
+        }))
+        setUserTrips(mapped)
+      }
+
+      if (apiCities && apiCities.length > 0) {
+        setTopCities(apiCities.slice(0, 3))
+      }
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  const upcomingTrips = userTrips.filter((t) => t.status === "upcoming" || t.status === "ongoing")
+  const totalBudgetCents = userTrips.reduce((acc, curr) => acc + (curr.budgetCents || 0), 0)
+  const totalStops = userTrips.reduce((acc, curr) => acc + (curr.stops ? curr.stops.length : 0), 0)
 
   return (
     <AppShell>
@@ -34,7 +87,7 @@ export default function Dashboard() {
               <Sparkles className="h-3.5 w-3.5 text-foreground" /> Travel Command Center
             </div>
             <h1 className="mt-1 font-script text-5xl sm:text-6xl font-normal text-foreground">
-              Welcome back, {currentUser.name.split(" ")[0]}
+              Welcome back, {userName}
             </h1>
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">
               You have {upcomingTrips.length} active multi-city adventures scheduled.
@@ -42,7 +95,7 @@ export default function Dashboard() {
           </div>
 
           <Link href="/trips/new">
-            <Button variant="default">
+            <Button variant="default" className="rounded-xl font-bold">
               <Plus className="mr-2 h-4 w-4" /> PLAN NEW TRIP
             </Button>
           </Link>
@@ -58,7 +111,7 @@ export default function Dashboard() {
                   <Globe2 className="h-4 w-4" />
                 </div>
               </div>
-              <p className="mt-3 text-3xl font-black text-foreground">{trips.length}</p>
+              <p className="mt-3 text-3xl font-black text-foreground">{userTrips.length}</p>
               <p className="mt-2 flex items-center gap-1 text-[11px] text-emerald-600 font-bold uppercase tracking-wider">
                 <TrendingUp className="h-3.5 w-3.5" /> +2 this month
               </p>
@@ -118,12 +171,12 @@ export default function Dashboard() {
                 href="/trips"
                 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-foreground hover:underline"
               >
-                View all ({trips.length}) <ArrowRight className="h-3.5 w-3.5" />
+                View all ({userTrips.length}) <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
             <div className="space-y-4">
-              {trips.map((t) => (
+              {userTrips.map((t) => (
                 <Card
                   key={t.id}
                   className="polaroid-card group overflow-hidden"
@@ -135,7 +188,7 @@ export default function Dashboard() {
                         alt={t.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-                      <Badge className="absolute left-2.5 top-2.5">
+                      <Badge className="absolute left-2.5 top-2.5 capitalize">
                         {t.status}
                       </Badge>
                     </div>
@@ -161,21 +214,21 @@ export default function Dashboard() {
                             <Calendar className="h-3.5 w-3.5 text-foreground" /> {t.startDate} → {t.endDate}
                           </span>
                           <span className="flex items-center gap-1.5 font-semibold">
-                            <MapPin className="h-3.5 w-3.5 text-foreground" /> {t.stops.length} Cities
+                            <MapPin className="h-3.5 w-3.5 text-foreground" /> {t.stops ? t.stops.length : 0} Cities
                           </span>
                           <span className="flex items-center gap-1.5 font-bold text-foreground">
-                            <Wallet className="h-3.5 w-3.5 text-emerald-600" /> {formatCurrency(t.budgetCents)}
+                            <Wallet className="h-3.5 w-3.5 text-emerald-600" /> {formatCurrency(t.budgetCents || 0)}
                           </span>
                         </div>
 
                         <div className="flex gap-2">
                           <Link href={`/trips/${t.id}`} className="flex-1">
-                            <Button size="sm" variant="secondary" className="w-full">
+                            <Button size="sm" variant="secondary" className="w-full font-bold">
                               OVERVIEW
                             </Button>
                           </Link>
                           <Link href={`/trips/${t.id}/builder`} className="flex-1">
-                            <Button size="sm" variant="default" className="w-full">
+                            <Button size="sm" variant="default" className="w-full font-bold">
                               EDIT BUILDER
                             </Button>
                           </Link>
@@ -196,7 +249,7 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-4">
-              {cities.slice(0, 3).map((city) => (
+              {topCities.map((city) => (
                 <Card key={city.id} className="polaroid-card">
                   <div className="relative h-32 overflow-hidden rounded-sm">
                     <img src={city.image} alt={city.name} className="h-full w-full object-cover" />
@@ -210,7 +263,7 @@ export default function Dashboard() {
                     <div className="mt-3 flex items-center justify-between">
                       <span className="text-xs font-bold text-amber-600">{city.popularity}% Rating</span>
                       <Link href={`/trips/new?destination=${encodeURIComponent(city.name)}`}>
-                        <Button size="sm" variant="secondary" className="h-7 text-[10px]">
+                        <Button size="sm" variant="secondary" className="h-7 text-[10px] font-bold">
                           + ADD TO TRIP
                         </Button>
                       </Link>
@@ -243,3 +296,4 @@ export default function Dashboard() {
     </AppShell>
   )
 }
+
