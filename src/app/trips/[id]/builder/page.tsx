@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, use } from "react"
 import Link from "next/link"
 import { AppShell } from "@/components/layout/app-shell"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,7 +9,18 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { trips as initialTrips, cities, activities as availableActivities, formatCurrency, Stop, TripActivity } from "@/lib/data"
+import { trips as initialTrips, cities as fallbackCities, activities as availableActivities, formatCurrency, Stop, TripActivity, Trip, City } from "@/lib/data"
+import {
+  apiGetTripById,
+  apiAddStop,
+  apiDeleteStop,
+  apiMoveStop,
+  apiAddItem,
+  apiDeleteItem,
+  apiMoveItem,
+  apiGetCities,
+  apiGetCityActivities,
+} from "@/lib/api-client"
 import {
   Plus,
   ArrowLeft,
@@ -21,17 +32,84 @@ import {
   PlusCircle,
   Sparkles,
   Eye,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 
-export default function ItineraryBuilderPage() {
-  const [trip, setTrip] = useState(initialTrips[0])
+export default function ItineraryBuilderPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
+  const tripId = resolvedParams.id
+
+  const [trip, setTrip] = useState<Trip>(initialTrips[0])
+  const [cityCatalog, setCityCatalog] = useState<City[]>(fallbackCities)
   const [addStopOpen, setAddStopOpen] = useState(false)
-  const [selectedCityId, setSelectedCityId] = useState(cities[1].id)
-  const [arrivalDate, setArrivalDate] = useState("2026-09-22")
-  const [departureDate, setDepartureDate] = useState("2026-09-25")
+  const [selectedCityId, setSelectedCityId] = useState(fallbackCities[0].id)
+  const [arrivalDate, setArrivalDate] = useState("2026-09-10")
+  const [departureDate, setDepartureDate] = useState("2026-09-14")
 
   const [addActivityOpen, setAddActivityOpen] = useState(false)
   const [activeStopId, setActiveStopId] = useState<string | null>(null)
+  const [cityActivities, setCityActivities] = useState<typeof availableActivities>(availableActivities)
+  const [customTitle, setCustomTitle] = useState("")
+  const [customCost, setCustomCost] = useState("30")
+
+  const loadTripData = async () => {
+    const data = await apiGetTripById(tripId)
+    if (data) {
+      const fullTrip: Trip = {
+        id: data.trip.id,
+        userId: data.trip.userId,
+        name: data.trip.name,
+        description: data.trip.description || "",
+        startDate: data.trip.startDate,
+        endDate: data.trip.endDate,
+        budgetCents: data.trip.budgetCents || 0,
+        isPublic: data.trip.isPublic,
+        shareSlug: data.trip.shareSlug,
+        coverImageUrl: data.trip.coverImageUrl || "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200",
+        status: "upcoming",
+        stops: data.stops.map((s) => ({
+          id: s.id,
+          tripId: s.tripId,
+          cityId: s.cityId,
+          city: s.city,
+          position: s.position,
+          arrivalDate: s.arrivalDate,
+          departureDate: s.departureDate,
+          activities: data.items
+            .filter((item) => item.stopId === s.id)
+            .map((item) => ({
+              id: item.id,
+              stopId: item.stopId,
+              activityId: item.activityId || undefined,
+              title: item.title,
+              category: (item.category as any) || "sightseeing",
+              durationMins: item.durationMins,
+              costCents: item.costCents,
+              date: item.date,
+              startTime: item.startTime || "10:00",
+              position: item.position,
+            })),
+        })),
+      }
+      setTrip(fullTrip)
+    } else {
+      const found = initialTrips.find((t) => t.id === tripId) || initialTrips[0]
+      setTrip(found)
+    }
+  }
+
+  useEffect(() => {
+    loadTripData()
+    async function loadCities() {
+      const data = await apiGetCities()
+      if (data && data.items.length > 0) {
+        setCityCatalog(data.items)
+        setSelectedCityId(data.items[0].id)
+      }
+    }
+    loadCities()
+  }, [tripId])
 
   // Calculate live total cost
   const totalCostCents = trip.stops.reduce(
@@ -39,65 +117,77 @@ export default function ItineraryBuilderPage() {
     0
   )
 
-  const handleAddStop = () => {
-    const selectedCity = cities.find((c) => c.id === selectedCityId) || cities[0]
-    const newStop: Stop = {
-      id: `stop-${Date.now()}`,
-      tripId: trip.id,
-      cityId: selectedCity.id,
-      city: selectedCity,
-      position: trip.stops.length * 1000,
+  const handleAddStop = async () => {
+    await apiAddStop(trip.id, {
+      cityId: selectedCityId,
       arrivalDate,
       departureDate,
-      activities: [],
-    }
-
-    setTrip({
-      ...trip,
-      stops: [...trip.stops, newStop],
     })
+    await loadTripData()
     setAddStopOpen(false)
   }
 
-  const handleDeleteStop = (stopId: string) => {
-    setTrip({
-      ...trip,
-      stops: trip.stops.filter((s) => s.id !== stopId),
-    })
+  const handleDeleteStop = async (stopId: string) => {
+    await apiDeleteStop(stopId)
+    await loadTripData()
   }
 
-  const handleAttachActivity = (activityId: string) => {
-    if (!activeStopId) return
-    const act = availableActivities.find((a) => a.id === activityId)
-    if (!act) return
+  const handleMoveStop = async (stopId: string, direction: "up" | "down") => {
+    await apiMoveStop(stopId, direction)
+    await loadTripData()
+  }
 
-    const newTripActivity: TripActivity = {
-      id: `tact-${Math.floor(Math.random() * 100000)}`,
-      stopId: activeStopId,
-      activityId: act.id,
-      title: act.title,
-      category: act.category,
-      durationMins: act.durationMins,
-      costCents: act.costCents,
-      date: trip.startDate,
-      startTime: "10:00",
-      position: 0,
+  const handleOpenAddActivity = async (stop: Stop) => {
+    setActiveStopId(stop.id)
+    const data = await apiGetCityActivities(stop.cityId)
+    if (data && data.items.length > 0) {
+      setCityActivities(data.items)
+    } else {
+      setCityActivities(availableActivities)
     }
+    setAddActivityOpen(true)
+  }
 
-    setTrip({
-      ...trip,
-      stops: trip.stops.map((s) => (s.id === activeStopId ? { ...s, activities: [...s.activities, newTripActivity] } : s)),
+  const handleAttachCatalogActivity = async (act: typeof availableActivities[0]) => {
+    if (!activeStopId) return
+    const currentStop = trip.stops.find((s) => s.id === activeStopId)
+    const activityDate = currentStop ? currentStop.arrivalDate : trip.startDate
+
+    await apiAddItem(activeStopId, {
+      activityId: act.id,
+      date: activityDate,
+      startTime: "10:00",
     })
+    await loadTripData()
     setAddActivityOpen(false)
   }
 
-  const handleDeleteActivity = (stopId: string, activityId: string) => {
-    setTrip({
-      ...trip,
-      stops: trip.stops.map((s) =>
-        s.id === stopId ? { ...s, activities: s.activities.filter((a) => a.id !== activityId) } : s
-      ),
+  const handleAddCustomActivity = async () => {
+    if (!activeStopId || !customTitle.trim()) return
+    const currentStop = trip.stops.find((s) => s.id === activeStopId)
+    const activityDate = currentStop ? currentStop.arrivalDate : trip.startDate
+
+    await apiAddItem(activeStopId, {
+      title: customTitle.trim(),
+      category: "sightseeing",
+      costCents: Math.round(parseFloat(customCost || "0") * 100),
+      durationMins: 120,
+      date: activityDate,
+      startTime: "11:00",
     })
+    await loadTripData()
+    setCustomTitle("")
+    setAddActivityOpen(false)
+  }
+
+  const handleDeleteActivity = async (itemId: string) => {
+    await apiDeleteItem(itemId)
+    await loadTripData()
+  }
+
+  const handleMoveItem = async (itemId: string, direction: "up" | "down") => {
+    await apiMoveItem(itemId, direction)
+    await loadTripData()
   }
 
   return (
@@ -137,7 +227,7 @@ export default function ItineraryBuilderPage() {
         </div>
 
         {/* Live Budget Counter Banner */}
-        <Card className="border-border bg-card/80 backdrop-blur-xl shadow-xl glow-cyan">
+        <Card className="border-border/60 bg-card/80 backdrop-blur-xl shadow-xl rounded-2xl">
           <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-400 border border-emerald-500/20">
@@ -146,7 +236,7 @@ export default function ItineraryBuilderPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Itinerary Financial Math</p>
                 <p className="text-xl font-black text-foreground">
-                  Scheduled Total: <span className="text-emerald-400">{formatCurrency(totalCostCents)}</span> / {formatCurrency(trip.budgetCents)}
+                  Scheduled Total: <span className="text-emerald-400">{formatCurrency(totalCostCents)}</span> / {formatCurrency(trip.budgetCents || 0)}
                 </p>
               </div>
             </div>
@@ -154,7 +244,7 @@ export default function ItineraryBuilderPage() {
             <div className="text-right">
               <p className="text-xs text-muted-foreground font-semibold">Remaining Allocated Budget</p>
               <p className="text-lg font-bold text-cyan-400">
-                {formatCurrency(Math.max(0, trip.budgetCents - totalCostCents))}
+                {formatCurrency(Math.max(0, (trip.budgetCents || 0) - totalCostCents))}
               </p>
             </div>
           </CardContent>
@@ -163,7 +253,7 @@ export default function ItineraryBuilderPage() {
         {/* Stop Sections Manager */}
         <div className="space-y-6">
           {trip.stops.map((stop, index) => (
-            <Card key={stop.id} className="border-border shadow-xl overflow-hidden card-hover-glow">
+            <Card key={stop.id} className="border-border/60 shadow-xl overflow-hidden rounded-2xl">
               <div className="bg-muted/40 p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60">
                 <div className="flex items-center gap-4">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/20 font-black text-cyan-400 text-sm border border-cyan-500/30">
@@ -182,12 +272,29 @@ export default function ItineraryBuilderPage() {
 
                 <div className="flex items-center gap-2">
                   <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleMoveStop(stop.id, "up")}
+                    disabled={index === 0}
+                    className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                    title="Move stop up"
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleMoveStop(stop.id, "down")}
+                    disabled={index === trip.stops.length - 1}
+                    className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                    title="Move stop down"
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                  <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      setActiveStopId(stop.id)
-                      setAddActivityOpen(true)
-                    }}
+                    onClick={() => handleOpenAddActivity(stop)}
                     className="rounded-xl text-xs font-bold border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
                   >
                     <PlusCircle className="mr-1.5 h-4 w-4" /> Add Activity
@@ -211,23 +318,39 @@ export default function ItineraryBuilderPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => {
-                        setActiveStopId(stop.id)
-                        setAddActivityOpen(true)
-                      }}
+                      onClick={() => handleOpenAddActivity(stop)}
                       className="mt-2 text-xs font-bold text-cyan-400"
                     >
                       + Browse & Add Activities
                     </Button>
                   </div>
                 ) : (
-                  stop.activities.map((act) => (
+                  stop.activities.map((act, actIdx) => (
                     <div
                       key={act.id}
                       className="flex items-center justify-between rounded-2xl border border-border/80 bg-card p-3.5 hover:border-cyan-500/40 transition-all duration-200 shadow-sm"
                     >
                       <div className="flex items-center gap-3">
-                        <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab hover:text-cyan-400 transition-colors" />
+                        <div className="flex flex-col gap-0.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleMoveItem(act.id, "up")}
+                            disabled={actIdx === 0}
+                            className="h-5 w-5 rounded p-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleMoveItem(act.id, "down")}
+                            disabled={actIdx === stop.activities.length - 1}
+                            className="h-5 w-5 rounded p-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </Button>
+                        </div>
                         <div>
                           <p className="font-bold text-sm text-foreground">{act.title}</p>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
@@ -241,7 +364,7 @@ export default function ItineraryBuilderPage() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => handleDeleteActivity(stop.id, act.id)}
+                        onClick={() => handleDeleteActivity(act.id)}
                         className="text-muted-foreground hover:text-destructive h-8 w-8 rounded-lg"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -257,10 +380,10 @@ export default function ItineraryBuilderPage() {
 
       {/* Add Stop Modal Dialog */}
       <Dialog open={addStopOpen} onOpenChange={setAddStopOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Add City Stop to Itinerary</DialogTitle>
-            <DialogDescription>Select a city and assign arrival & departure dates.</DialogDescription>
+            <DialogTitle className="text-xl font-bold">Add City Stop to Itinerary</DialogTitle>
+            <DialogDescription className="text-xs">Select a city and assign arrival & departure dates.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
@@ -269,9 +392,9 @@ export default function ItineraryBuilderPage() {
               <select
                 value={selectedCityId}
                 onChange={(e) => setSelectedCityId(e.target.value)}
-                className="w-full h-10 rounded-xl border border-border bg-card px-3 text-sm font-semibold outline-none"
+                className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm font-semibold outline-none"
               >
-                {cities.map((c) => (
+                {cityCatalog.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}, {c.country} (Cost Index {c.costIndex}/100)
                   </option>
@@ -286,6 +409,7 @@ export default function ItineraryBuilderPage() {
                   type="date"
                   value={arrivalDate}
                   onChange={(e) => setArrivalDate(e.target.value)}
+                  className="rounded-xl"
                 />
               </div>
 
@@ -295,13 +419,14 @@ export default function ItineraryBuilderPage() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
+                  className="rounded-xl"
                 />
               </div>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddStopOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setAddStopOpen(false)} className="rounded-xl">Cancel</Button>
             <Button onClick={handleAddStop} className="font-bold rounded-xl">Add Stop</Button>
           </DialogFooter>
         </DialogContent>
@@ -309,17 +434,40 @@ export default function ItineraryBuilderPage() {
 
       {/* Add Activity Modal Dialog */}
       <Dialog open={addActivityOpen} onOpenChange={setAddActivityOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Assign Activity to Stop</DialogTitle>
-            <DialogDescription>Browse available experiences and add them to your itinerary.</DialogDescription>
+            <DialogTitle className="text-xl font-bold">Assign Activity to Stop</DialogTitle>
+            <DialogDescription className="text-xs">Browse catalog experiences or create a custom entry.</DialogDescription>
           </DialogHeader>
 
+          <div className="border-b border-border pb-3 mb-2 space-y-2">
+            <Label className="text-xs font-bold">Add Custom Activity</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Activity Title (e.g. Sunset Coffee)"
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                className="rounded-xl text-xs h-9 flex-1"
+              />
+              <Input
+                type="number"
+                placeholder="Cost ($)"
+                value={customCost}
+                onChange={(e) => setCustomCost(e.target.value)}
+                className="rounded-xl text-xs h-9 w-24"
+              />
+              <Button onClick={handleAddCustomActivity} size="sm" className="rounded-xl font-bold text-xs h-9">
+                + Add Custom
+              </Button>
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto space-y-3 py-2">
-            {availableActivities.map((act) => (
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catalog Activities</p>
+            {cityActivities.map((act) => (
               <div
                 key={act.id}
-                className="flex items-center justify-between rounded-xl border border-border p-3 hover:bg-accent/40 transition-colors"
+                className="flex items-center justify-between rounded-xl border border-border/60 p-3 hover:bg-accent/40 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <img src={act.image} alt={act.title} className="h-12 w-12 rounded-xl object-cover shrink-0" />
@@ -336,7 +484,7 @@ export default function ItineraryBuilderPage() {
 
                 <Button
                   size="sm"
-                  onClick={() => handleAttachActivity(act.id)}
+                  onClick={() => handleAttachCatalogActivity(act)}
                   className="rounded-xl font-bold text-xs shrink-0"
                 >
                   + Add
@@ -349,3 +497,4 @@ export default function ItineraryBuilderPage() {
     </AppShell>
   )
 }
+
