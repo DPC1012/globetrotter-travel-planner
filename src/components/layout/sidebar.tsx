@@ -19,7 +19,7 @@ const nav = [
 export function Sidebar() {
   const pathname = usePathname()
   return (
-    <aside className="hidden lg:flex w-[280px] shrink-0 flex-col border-r bg-sidebar sticky top-0 h-screen">
+    <aside className="hidden lg:flex w-70 shrink-0 flex-col border-r bg-sidebar sticky top-0 h-screen">
       <div className="p-6">
         <Link href="/dashboard" className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground"><PlaneTakeoff className="h-5 w-5" /></div>
@@ -40,7 +40,7 @@ export function Sidebar() {
         <Link href="/admin" className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium", pathname.startsWith("/admin") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}><ShieldCheck className="h-4 w-4" />Admin</Link>
       </nav>
       <div className="p-4">
-        <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/70 p-4 text-primary-foreground">
+        <div className="rounded-2xl bg-linear-to-br from-primary to-primary/70 p-4 text-primary-foreground">
           <p className="text-sm font-semibold">Upgrade to Pro</p>
           <p className="text-xs opacity-80 mt-1">Get AI itinerary & unlimited trips</p>
           <Button variant="secondary" size="sm" className="mt-3 w-full rounded-full">Upgrade</Button>
